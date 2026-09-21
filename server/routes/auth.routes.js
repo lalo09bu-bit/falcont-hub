@@ -219,6 +219,228 @@ router.post('/register-magic', async (req, res) => {
 });
 
 /**
+ * POST /api/auth/login-rfc
+ * Inicio de sesión directo mediante RFC y Correo Institucional Autorizado.
+ * Si las credenciales coinciden con un colaborador activo, genera JWT y sesión directa.
+ */
+router.post('/login-rfc', (req, res) => {
+    const { rfc: rawRfc, email: rawEmail } = req.body || {};
+
+    if (!rawRfc || typeof rawRfc !== 'string' || !rawRfc.trim()) {
+        return res.status(400).json({ success: false, error: 'Debes ingresar tu RFC de colaborador.' });
+    }
+
+    if (!rawEmail || typeof rawEmail !== 'string' || !rawEmail.trim()) {
+        return res.status(400).json({ success: false, error: 'Debes ingresar tu correo institucional.' });
+    }
+
+    const rfc = rawRfc.trim().toUpperCase();
+    const email = rawEmail.trim().toLowerCase();
+
+    if (!esDominioAutorizado(email)) {
+        return res.status(400).json({
+            success: false,
+            error: 'Dominio no autorizado. Solo se permiten cuentas institucionales de @adeltaconsultores.com y @rdlabogados.com.mx.'
+        });
+    }
+
+    // Buscar usuario por RFC y Correo
+    const query = `
+        SELECT id, rfc, email, nombre, rol, puesto, departamento, avatar, foto_perfil, estatus_laboral
+        FROM usuarios
+        WHERE UPPER(TRIM(rfc)) = ? AND LOWER(TRIM(email)) = ?
+        LIMIT 1
+    `;
+
+    db.get(query, [rfc, email], (err, usuario) => {
+        if (err) {
+            console.error('❌ Error en login-rfc:', err.message);
+            return res.status(500).json({ success: false, error: 'Error interno del servidor al consultar credenciales.' });
+        }
+
+        if (!usuario) {
+            // Revisar si existe el correo con otro RFC o viceversa para dar retroalimentación útil
+            db.get('SELECT id, email, rfc FROM usuarios WHERE LOWER(TRIM(email)) = ? LIMIT 1', [email], (checkErr, userByEmail) => {
+                if (userByEmail) {
+                    return res.status(401).json({
+                        success: false,
+                        error: 'El RFC ingresado no coincide con el registrado para este correo electrónico.'
+                    });
+                }
+                return res.status(404).json({
+                    success: false,
+                    notRegistered: true,
+                    email,
+                    rfc,
+                    error: 'No se encontró ningún colaborador registrado con este RFC y Correo. Por favor crea tu perfil de colaborador.'
+                });
+            });
+            return;
+        }
+
+        const estatus = (usuario.estatus_laboral || 'ACTIVO').toUpperCase();
+        if (estatus !== 'ACTIVO') {
+            return res.status(403).json({
+                success: false,
+                error: 'Esta cuenta se encuentra inactiva. Comunícate con la Dirección de Recursos Humanos.'
+            });
+        }
+
+        const jwtToken = generarJwt(usuario);
+
+        res.cookie('rdl_session', jwtToken, {
+            httpOnly: true,
+            secure: false, // Compatible con HTTP (Azure VM / IP Local) y HTTPS (Render)
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+
+        console.log(`🔐 Sesión iniciada con éxito (RFC): ${usuario.nombre} (${usuario.rfc})`);
+
+        return res.json({
+            success: true,
+            user: usuario,
+            token: jwtToken,
+            redirectUrl: '/'
+        });
+    });
+});
+
+/**
+ * POST /api/auth/register-rfc
+ * Alta de nuevo perfil de colaborador con RFC y Correo Institucional.
+ * Registra e inicia sesión de inmediato (sin esperas de correo).
+ */
+router.post('/register-rfc', (req, res) => {
+    const { rfc: rawRfc, email: rawEmail, nombre: rawNombre, puesto, departamento, telefono } = req.body || {};
+
+    if (!rawRfc || typeof rawRfc !== 'string' || !rawRfc.trim()) {
+        return res.status(400).json({ success: false, error: 'Debes proporcionar un RFC válido.' });
+    }
+
+    if (!rawEmail || typeof rawEmail !== 'string' || !rawEmail.trim()) {
+        return res.status(400).json({ success: false, error: 'Debes proporcionar un correo institucional válido.' });
+    }
+
+    if (!rawNombre || typeof rawNombre !== 'string' || rawNombre.trim().length < 3) {
+        return res.status(400).json({ success: false, error: 'Debes proporcionar tu nombre completo (mínimo 3 caracteres).' });
+    }
+
+    const rfc = rawRfc.trim().toUpperCase();
+    const email = rawEmail.trim().toLowerCase();
+    const nombre = rawNombre.trim();
+
+    if (!esDominioAutorizado(email)) {
+        return res.status(400).json({
+            success: false,
+            error: 'Dominio no autorizado. Solo se permiten cuentas @adeltaconsultores.com o @rdlabogados.com.mx.'
+        });
+    }
+
+    // Verificar si ya existe por email o RFC
+    db.get('SELECT id, email, rfc, nombre FROM usuarios WHERE LOWER(TRIM(email)) = ? OR UPPER(TRIM(rfc)) = ? LIMIT 1', [email, rfc], (checkErr, existing) => {
+        if (checkErr) {
+            console.error('❌ Error al verificar duplicidad en register-rfc:', checkErr.message);
+            return res.status(500).json({ success: false, error: 'Error al verificar cuenta.' });
+        }
+
+        if (existing) {
+            if (existing.email.toLowerCase() === email && existing.rfc && existing.rfc.toUpperCase() === rfc) {
+                // Ya existe exactamente este usuario: iniciar sesión de una vez
+                const jwtToken = generarJwt(existing);
+                res.cookie('rdl_session', jwtToken, {
+                    httpOnly: true,
+                    secure: false,
+                    sameSite: 'lax',
+                    maxAge: 7 * 24 * 60 * 60 * 1000
+                });
+                return res.json({
+                    success: true,
+                    alreadyRegistered: true,
+                    user: existing,
+                    token: jwtToken,
+                    redirectUrl: '/',
+                    message: `Bienvenido de vuelta, ${existing.nombre}. Tu cuenta ya estaba registrada.`
+                });
+            } else if (existing.email.toLowerCase() === email) {
+                return res.status(409).json({
+                    success: false,
+                    error: `El correo ${email} ya está registrado con otro RFC. Si necesitas actualizarlo contacta a RH.`
+                });
+            } else {
+                return res.status(409).json({
+                    success: false,
+                    error: `El RFC ${rfc} ya está asignado a otro colaborador (${existing.nombre}).`
+                });
+            }
+        }
+
+        // Crear nuevo colaborador
+        const puestoFinal = (puesto && typeof puesto === 'string' && puesto.trim()) ? puesto.trim() : 'Colaborador Corporativo';
+        const deptFinal = (departamento && typeof departamento === 'string' && departamento.trim()) ? departamento.trim() : 'Legal & Consultoría';
+        const telFinal = (telefono && typeof telefono === 'string' && telefono.trim()) ? telefono.trim() : '+52 (55) 5482-9000';
+
+        const partes = nombre.split(/\s+/);
+        const avatar = partes.length > 1
+            ? (partes[0][0] + partes[1][0]).toUpperCase()
+            : partes[0].substring(0, 2).toUpperCase();
+
+        const numEmpleado = `RDL-${Math.floor(100 + Math.random() * 900)}`;
+        const fechaIngreso = new Date().toISOString().split('T')[0];
+        const rolFinal = (email.includes('rh@') || deptFinal.toLowerCase().includes('recursos humanos')) ? 'RH' : 'ABOGADA_JR';
+
+        const insertQuery = `
+            INSERT INTO usuarios (
+                rfc, email, nombre, rol, puesto, departamento, avatar, telefono,
+                fecha_ingreso, tipo_contrato, numero_empleado, salario_base,
+                estatus_laboral, dias_vacaciones_totales, dias_vacaciones_tomados
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Tiempo Indeterminado', ?, 'Confidencial', 'ACTIVO', 15, 0)
+        `;
+
+        db.run(insertQuery, [rfc, email, nombre, rolFinal, puestoFinal, deptFinal, avatar, telFinal, fechaIngreso, numEmpleado], function (insertErr) {
+            if (insertErr) {
+                console.error('❌ Error al insertar colaborador en register-rfc:', insertErr.message);
+                return res.status(500).json({ success: false, error: 'Error al dar de alta el perfil de colaborador en la base de datos.' });
+            }
+
+            const nuevoUsuarioId = this.lastID;
+            const nuevoUsuario = {
+                id: nuevoUsuarioId,
+                rfc,
+                email,
+                nombre,
+                rol: rolFinal,
+                puesto: puestoFinal,
+                departamento: deptFinal,
+                avatar,
+                telefono: telFinal,
+                numero_empleado: numEmpleado,
+                estatus_laboral: 'ACTIVO'
+            };
+
+            const jwtToken = generarJwt(nuevoUsuario);
+
+            res.cookie('rdl_session', jwtToken, {
+                httpOnly: true,
+                secure: false,
+                sameSite: 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000
+            });
+
+            console.log(`✅ Nuevo colaborador dado de alta e iniciado: ${nombre} (${rfc} / ${email}) ID: ${nuevoUsuarioId}`);
+
+            return res.json({
+                success: true,
+                user: nuevoUsuario,
+                token: jwtToken,
+                redirectUrl: '/',
+                message: `¡Perfil creado con éxito! Bienvenido(a) a RDL Intelligence Hub, ${nombre}.`
+            });
+        });
+    });
+});
+
+/**
  * GET /api/auth/verify
  * Verifica y consume el token de un enlace mágico.
  * Si es válido, emite una cookie httpOnly `rdl_session` con JWT y redirige a la plataforma.
@@ -242,13 +464,13 @@ router.get('/verify', async (req, res) => {
 
         res.cookie('rdl_session', jwtToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: false,
             sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días de validez
         });
 
         console.log(`🔐 Sesión iniciada con éxito para: ${usuario.nombre} (${usuario.email})`);
-        return res.redirect('/');
+        return res.redirect(`/?token=${encodeURIComponent(jwtToken)}`);
     } catch (err) {
         console.error('❌ Error durante la verificación del token:', err.message);
         return res.redirect('/login?error=error_verificacion');
@@ -284,18 +506,22 @@ router.post('/logout', (req, res) => {
 
 /**
  * GET /api/auth/dev-login
- * Acceso Rápido de Prueba (1 Clic) para Evaluación en Azure VM:
+ * Acceso Rápido de Prueba (1 Clic) para Evaluación en Azure VM o Render:
  * Emite la cookie segura rdl_session con JWT y redirige a la plataforma.
  */
 router.get('/dev-login', (req, res) => {
     const role = req.query.role;
     const email = req.query.email;
+    const rfc = req.query.rfc;
 
-    let query = 'SELECT id, nombre, email, rol, puesto, departamento, avatar, foto_perfil FROM usuarios WHERE estatus_laboral = "ACTIVO"';
+    let query = 'SELECT id, rfc, nombre, email, rol, puesto, departamento, avatar, foto_perfil FROM usuarios WHERE (estatus_laboral = "ACTIVO" OR estatus_laboral IS NULL OR UPPER(estatus_laboral) = "ACTIVO")';
     let params = [];
 
-    if (email) {
-        query += ' AND LOWER(email) = LOWER(?) LIMIT 1';
+    if (rfc) {
+        query += ' AND UPPER(TRIM(rfc)) = UPPER(TRIM(?)) LIMIT 1';
+        params = [rfc];
+    } else if (email) {
+        query += ' AND LOWER(TRIM(email)) = LOWER(TRIM(?)) LIMIT 1';
         params = [email];
     } else if (role) {
         query += ' AND rol = ? LIMIT 1';
@@ -306,6 +532,7 @@ router.get('/dev-login', (req, res) => {
 
     db.get(query, params, (err, usuario) => {
         if (err || !usuario) {
+            console.error('❌ dev-login usuario no encontrado:', err ? err.message : 'No coincide ningún usuario');
             return res.redirect('/login?error=usuario_no_encontrado');
         }
 
@@ -313,13 +540,13 @@ router.get('/dev-login', (req, res) => {
 
         res.cookie('rdl_session', jwtToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: false,
             sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
-        console.log(`⚡ [DEV LOGIN] Sesión instantánea iniciada como: ${usuario.nombre} (${usuario.rol})`);
-        return res.redirect('/');
+        console.log(`⚡ [DEV LOGIN] Sesión instantánea iniciada como: ${usuario.nombre} (${usuario.rfc || usuario.rol})`);
+        return res.redirect(`/?token=${encodeURIComponent(jwtToken)}`);
     });
 });
 

@@ -533,20 +533,25 @@ import Header from '../components/Header.astro';
                             <input type="text" id="edit-buk-departamento" required>
                         </div>
                         <div class="form-group">
-                            <label>No. de Empleado</label>
-                            <input type="text" id="edit-buk-numero-empleado" placeholder="Ej: RDL-005">
+                            <label>RFC del Colaborador</label>
+                            <input type="text" id="edit-buk-rfc" placeholder="Ej: COSR880101RDL" maxlength="13" style="text-transform: uppercase; font-family: monospace; font-weight: 600;">
                         </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
+                            <label>No. de Empleado</label>
+                            <input type="text" id="edit-buk-numero-empleado" placeholder="Ej: RDL-005">
+                        </div>
+                        <div class="form-group">
                             <label>Teléfono / Contacto</label>
                             <input type="text" id="edit-buk-telefono" placeholder="Ej: +52 (55) 5482-9000">
                         </div>
-                        <div class="form-group">
-                            <label>Fecha de Ingreso</label>
-                            <input type="date" id="edit-buk-fecha-ingreso">
-                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Fecha de Ingreso</label>
+                        <input type="date" id="edit-buk-fecha-ingreso">
                     </div>
 
                     <div class="form-row">

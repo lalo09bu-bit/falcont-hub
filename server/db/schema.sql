@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     fecha_ingreso DATE DEFAULT '2026-01-15',
     tipo_contrato TEXT DEFAULT 'Tiempo Indeterminado',
     numero_empleado TEXT DEFAULT 'RDL-001',
+    rfc TEXT UNIQUE,
     salario_base TEXT DEFAULT 'Confidencial',
     estatus_laboral TEXT CHECK(estatus_laboral IN ('ACTIVO', 'INACTIVO', 'LICENCIA')) NOT NULL DEFAULT 'ACTIVO',
     dias_vacaciones_totales INTEGER NOT NULL DEFAULT 15,

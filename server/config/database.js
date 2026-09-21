@@ -251,14 +251,45 @@ function runMigrations() {
                     console.log("✅ Columna 'estatus_laboral' agregada a usuarios.");
                 });
             }
+            const applyDefaultRfcs = () => {
+                const defaultRfcs = [
+                    { email: 'rh@rdl.com.mx', rfc: 'COSR880101RDL' },
+                    { email: 'admin@rdl.com.mx', rfc: 'RAMS850310RDL' },
+                    { email: 'sofia.ramirez@rdl.com.mx', rfc: 'RAMS850310RDL' },
+                    { email: 'abogada.sr@rdl.com.mx', rfc: 'MEVR920514RDL' },
+                    { email: 'valeria.mendoza@rdl.com.mx', rfc: 'MEVR920514RDL' },
+                    { email: 'abogada.jr@rdl.com.mx', rfc: 'MARA950820RDL' },
+                    { email: 'ana.martinez@rdl.com.mx', rfc: 'MARA950820RDL' },
+                    { email: 'mariana.torres@rdl.com.mx', rfc: 'TOMA960412RDL' },
+                    { email: 'patricia.silva@adeltaconsultores.com', rfc: 'SIP901105AD1' },
+                    { email: 'fernando.ortiz@rdlabogados.com.mx', rfc: 'OIF890723RD2' },
+                    { email: 'analista.rh04@adeltaconsultores.com', rfc: 'COSR880101AD3' }
+                ];
+                defaultRfcs.forEach(item => {
+                    db.run("UPDATE usuarios SET rfc = ? WHERE LOWER(email) = LOWER(?) AND (rfc IS NULL OR rfc = '')", [item.rfc, item.email]);
+                });
+            };
+
+            if (!colNames.includes('rfc')) {
+                db.run("ALTER TABLE usuarios ADD COLUMN rfc TEXT DEFAULT NULL", (alterErr) => {
+                    if (!alterErr) {
+                        console.log("✅ Columna 'rfc' agregada a usuarios.");
+                        db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_rfc ON usuarios(rfc) WHERE rfc IS NOT NULL;");
+                        db.run("CREATE INDEX IF NOT EXISTS idx_usuarios_rfc_email ON usuarios(rfc, email);");
+                        applyDefaultRfcs();
+                    }
+                });
+            } else {
+                applyDefaultRfcs();
+            }
 
             // 3. Garantizar perfil de Recursos Humanos (RH) con acceso total
             db.get("SELECT id FROM usuarios WHERE rol = 'RH' OR email = 'rh@rdl.com.mx'", [], (err, rhUser) => {
                 if (!err && !rhUser) {
                     console.log("🌱 Creando perfil de Dirección de Recursos Humanos (RH)...");
                     db.run(`
-                        INSERT OR IGNORE INTO usuarios (email, nombre, rol, puesto, departamento, avatar, telefono, fecha_ingreso, tipo_contrato, numero_empleado, dias_vacaciones_totales, dias_vacaciones_tomados)
-                        VALUES ('rh@rdl.com.mx', 'Lic. Andrés Cosmes', 'RH', 'Dirección de Recursos Humanos & Talento', 'Recursos Humanos', 'AC', '+52 (55) 5482-9000', '2023-01-01', 'Tiempo Indeterminado', 'RDL-RH01', 25, 0)
+                        INSERT OR IGNORE INTO usuarios (email, nombre, rol, puesto, departamento, avatar, telefono, fecha_ingreso, tipo_contrato, numero_empleado, rfc, dias_vacaciones_totales, dias_vacaciones_tomados)
+                        VALUES ('rh@rdl.com.mx', 'Lic. Andrés Cosmes', 'RH', 'Dirección de Recursos Humanos & Talento', 'Recursos Humanos', 'AC', '+52 (55) 5482-9000', '2023-01-01', 'Tiempo Indeterminado', 'RDL-RH01', 'COSR880101RDL', 25, 0)
                     `, function(err) {
                         if (!err) {
                             console.log("✅ Perfil de Recursos Humanos (RH) registrado con ID:", this.lastID);
@@ -295,29 +326,29 @@ function seedRdlData() {
             console.log('🌱 Poblando usuarios iniciales con Ficha Buk (RH, Admin, Abogada SR, Abogada JR)...');
 
             const insertUser = db.prepare(`
-                INSERT INTO usuarios (email, nombre, rol, puesto, departamento, avatar, telefono, fecha_ingreso, tipo_contrato, numero_empleado, dias_vacaciones_totales, dias_vacaciones_tomados)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO usuarios (email, nombre, rol, puesto, departamento, avatar, telefono, fecha_ingreso, tipo_contrato, numero_empleado, rfc, dias_vacaciones_totales, dias_vacaciones_tomados)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
             insertUser.run(
                 'rh@rdl.com.mx', 'Lic. Andrés Cosmes', 'RH', 'Dirección de Recursos Humanos & Talento',
-                'Recursos Humanos', 'AC', '+52 (55) 5482-9000', '2023-01-01', 'Tiempo Indeterminado', 'RDL-RH01', 25, 0
+                'Recursos Humanos', 'AC', '+52 (55) 5482-9000', '2023-01-01', 'Tiempo Indeterminado', 'RDL-RH01', 'COSR880101RDL', 25, 0
             );
             insertUser.run(
                 'admin@rdl.com.mx', 'Lic. Sofia Ramirez', 'ADMIN', 'Directora de Talent & Legal',
-                'Dirección General', 'SR', '+52 (55) 5482-9001', '2023-03-01', 'Tiempo Indeterminado', 'RDL-001', 20, 5
+                'Dirección General', 'SR', '+52 (55) 5482-9001', '2023-03-01', 'Tiempo Indeterminado', 'RDL-001', 'RAMS850310RDL', 20, 5
             );
             insertUser.run(
                 'abogada.sr@rdl.com.mx', 'Lic. Valeria Mendoza', 'ABOGADA_SR', 'Abogada Senior Corporativo',
-                'Legal & Talent RDL', 'VM', '+52 (55) 5482-9002', '2024-06-15', 'Tiempo Indeterminado', 'RDL-014', 15, 3
+                'Legal & Talent RDL', 'VM', '+52 (55) 5482-9002', '2024-06-15', 'Tiempo Indeterminado', 'RDL-014', 'MEVR920514RDL', 15, 3
             );
             insertUser.run(
                 'abogada.jr@rdl.com.mx', 'Lic. Ana Martinez', 'ABOGADA_JR', 'Abogada Junior de Litigio',
-                'Legal & Talent RDL', 'AM', '+52 (55) 5482-9003', '2025-01-10', 'Tiempo Indeterminado', 'RDL-028', 12, 2
+                'Legal & Talent RDL', 'AM', '+52 (55) 5482-9003', '2025-01-10', 'Tiempo Indeterminado', 'RDL-028', 'MARA950820RDL', 12, 2
             );
 
             insertUser.finalize(() => {
-                console.log('✅ Usuarios RDL registrados con ficha Buk.');
+                console.log('✅ Usuarios RDL registrados con ficha Buk y RFC.');
                 seedFeedAndMetas();
             });
         } else {

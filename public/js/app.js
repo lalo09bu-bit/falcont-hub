@@ -86,8 +86,25 @@ class LoginModule {
 
         let sessionUser = null;
         try {
+            // Revisar si viene un token en la URL (ej: dev-login redirect)
+            const urlParams = new URLSearchParams(window.location.search);
+            const queryToken = urlParams.get('token');
+            if (queryToken) {
+                try { localStorage.setItem('rdl_jwt', queryToken); } catch (e) {}
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            let localToken = null;
+            try { localToken = localStorage.getItem('rdl_jwt'); } catch (e) {}
+
+            const headers = { 'Accept': 'application/json' };
+            if (localToken) {
+                headers['Authorization'] = `Bearer ${localToken}`;
+            }
+
             const res = await fetch('/api/auth/me', {
-                headers: { 'Accept': 'application/json' }
+                headers,
+                credentials: 'include'
             });
 
             if (res.ok) {
@@ -105,6 +122,7 @@ class LoginModule {
         if (!sessionUser) {
             // Si el servidor confirma que no hay sesión activa
             console.warn('⚠️ Sesión no detectada o expirada. Redirigiendo a pantalla de acceso institucional...');
+            try { localStorage.removeItem('rdl_jwt'); } catch (e) {}
             window.location.replace('/login');
             return;
         }
@@ -222,6 +240,9 @@ class LoginModule {
 
     async logout() {
         window.currentUser = null;
+        try {
+            localStorage.removeItem('rdl_jwt');
+        } catch (e) {}
         try {
             await fetch('/api/auth/logout', { method: 'POST' });
         } catch (e) {

@@ -230,6 +230,10 @@ class PerfilModule {
                     <span class="buk-detail-val"><code>${perfil.numero_empleado || 'RDL-000'}</code></span>
                 </div>
                 <div class="buk-detail-card">
+                    <span class="buk-detail-label">🏛️ RFC</span>
+                    <span class="buk-detail-val"><strong style="font-family: monospace; letter-spacing: 0.5px; color: var(--accent-green-bright);">${perfil.rfc || 'No registrado'}</strong></span>
+                </div>
+                <div class="buk-detail-card">
                     <span class="buk-detail-label">✉️ Correo Electrónico</span>
                     <span class="buk-detail-val"><a href="mailto:${perfil.email}" style="color: var(--accent-green-bright); text-decoration: none;">${perfil.email}</a></span>
                 </div>
@@ -588,6 +592,8 @@ class PerfilModule {
         document.getElementById('edit-buk-nombre').value = p.nombre || '';
         document.getElementById('edit-buk-puesto').value = p.puesto || '';
         document.getElementById('edit-buk-departamento').value = p.departamento || 'Departamento Legal RDL';
+        const rfcEl = document.getElementById('edit-buk-rfc');
+        if (rfcEl) rfcEl.value = p.rfc || '';
         document.getElementById('edit-buk-telefono').value = p.telefono || '';
         document.getElementById('edit-buk-fecha-ingreso').value = p.fecha_ingreso || '2026-01-15';
         document.getElementById('edit-buk-tipo-contrato').value = p.tipo_contrato || 'Tiempo Indeterminado';
@@ -610,6 +616,8 @@ class PerfilModule {
         const nombre = document.getElementById('edit-buk-nombre').value.trim();
         const puesto = document.getElementById('edit-buk-puesto').value.trim();
         const departamento = document.getElementById('edit-buk-departamento').value.trim();
+        const rfcEl = document.getElementById('edit-buk-rfc');
+        const rfc = rfcEl ? rfcEl.value.trim().toUpperCase() : '';
         const telefono = document.getElementById('edit-buk-telefono').value.trim();
         const fecha_ingreso = document.getElementById('edit-buk-fecha-ingreso').value;
         const tipo_contrato = document.getElementById('edit-buk-tipo-contrato').value;
@@ -625,6 +633,7 @@ class PerfilModule {
                     nombre,
                     puesto,
                     departamento,
+                    rfc,
                     telefono,
                     fecha_ingreso,
                     tipo_contrato,

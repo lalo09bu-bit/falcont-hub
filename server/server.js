@@ -196,7 +196,7 @@ app.get('/api/colaboradores/:id', (req, res) => {
 // 1.3 ACTUALIZAR DATOS GENERALES DE COLABORADOR (FICHA BUK)
 app.put('/api/colaboradores/:id', (req, res) => {
     const userId = req.params.id;
-    const { nombre, puesto, departamento, telefono, fecha_ingreso, tipo_contrato, numero_empleado, salario_base, estatus_laboral } = req.body;
+    const { nombre, puesto, departamento, telefono, fecha_ingreso, tipo_contrato, numero_empleado, salario_base, estatus_laboral, rfc } = req.body;
 
     db.get('SELECT * FROM usuarios WHERE id = ?', [userId], (err, existing) => {
         if (err || !existing) return res.status(404).json({ error: 'Colaborador no encontrado' });
@@ -210,14 +210,15 @@ app.put('/api/colaboradores/:id', (req, res) => {
         const updatedNumEmp = numero_empleado || existing.numero_empleado;
         const updatedSalario = salario_base || existing.salario_base;
         const updatedEstatus = estatus_laboral || existing.estatus_laboral;
+        const updatedRfc = rfc !== undefined ? (rfc ? rfc.trim().toUpperCase() : null) : existing.rfc;
 
         const avatarTxt = updatedNombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
         db.run(`
             UPDATE usuarios 
-            SET nombre = ?, puesto = ?, departamento = ?, avatar = ?, telefono = ?, fecha_ingreso = ?, tipo_contrato = ?, numero_empleado = ?, salario_base = ?, estatus_laboral = ?
+            SET nombre = ?, puesto = ?, departamento = ?, avatar = ?, telefono = ?, fecha_ingreso = ?, tipo_contrato = ?, numero_empleado = ?, salario_base = ?, estatus_laboral = ?, rfc = ?
             WHERE id = ?
-        `, [updatedNombre, updatedPuesto, updatedDept, avatarTxt, updatedTel, updatedFecha, updatedContrato, updatedNumEmp, updatedSalario, updatedEstatus, userId], function(err) {
+        `, [updatedNombre, updatedPuesto, updatedDept, avatarTxt, updatedTel, updatedFecha, updatedContrato, updatedNumEmp, updatedSalario, updatedEstatus, updatedRfc, userId], function(err) {
             if (err) return res.status(500).json({ error: err.message });
 
             db.get('SELECT *, (dias_vacaciones_totales - dias_vacaciones_tomados) as dias_vacaciones_restantes FROM usuarios WHERE id = ?', [userId], (err, updatedUser) => {
@@ -643,12 +644,27 @@ app.get('*', (req, res) => {
         return res.status(404).json({ error: 'Recurso no encontrado' });
     }
 
-    // Comprobar cookie de sesión rdl_session
-    const token = req.cookies && req.cookies.rdl_session;
+    // Comprobar cookie de sesión rdl_session, token en query o Bearer header
+    const cookieToken = req.cookies && req.cookies.rdl_session;
+    const queryToken = req.query && req.query.token;
+    const authHeader = req.headers.authorization;
+    const headerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+
+    const token = cookieToken || queryToken || headerToken;
     const session = token ? verificarJwt(token) : null;
 
     if (!session) {
         return res.redirect('/login');
+    }
+
+    // Si el token provino de la URL o header y no estaba en cookie, establecer la cookie en la respuesta
+    if ((queryToken || headerToken) && !cookieToken) {
+        res.cookie('rdl_session', token, {
+            httpOnly: true,
+            secure: false,
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
     }
 
     const indexPath = path.join(distPath, 'index.html');
