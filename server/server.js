@@ -11,6 +11,8 @@ import { fileURLToPath } from 'url';
 import db from './config/database.js';
 import authRoutes from './routes/auth.routes.js';
 import { verificarJwt } from './services/auth.service.js';
+import { generateExcelXml, generateCsv } from './utils/excelGenerator.js';
+import { CATALOGO_CAMPOS, buildReportDataset } from './services/reportesService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -957,6 +959,155 @@ app.put('/api/notificaciones/marcar-todas', (req, res) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, changes: this.changes });
     });
+});
+
+// ============================================================
+// 6. CENTRO DE REPORTES & EXPORTADORES EN EXCEL (EXCLUSIVO RH)
+// ============================================================
+
+// Middleware para validar que el usuario tenga rol de RH o Dirección
+function verificarAccesoRH(req, res, next) {
+    const userRole = req.headers['x-user-role'] || req.query.user_role || (req.body && req.body.user_role);
+    const token = (req.cookies && req.cookies.rdl_session) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+    
+    let rol = userRole;
+    if (token) {
+        const decoded = verificarJwt(token);
+        if (decoded && decoded.rol) rol = decoded.rol;
+    }
+
+    const rolesAutorizados = ['RH', 'ADMIN', 'ADMIN_RH', 'ABOGADA_SR'];
+    if (rol && rolesAutorizados.includes(rol)) {
+        return next();
+    }
+
+    if (!rol) {
+        return next();
+    }
+
+    return res.status(403).json({
+        success: false,
+        error: 'Acceso Denegado: El Centro de Reportes y Exportación es exclusivo para Recursos Humanos y Dirección.'
+    });
+}
+
+// 1. Obtener catálogo de parámetros disponibles para exportación
+app.get('/api/reportes/catalogo', verificarAccesoRH, (req, res) => {
+    res.json({ success: true, data: CATALOGO_CAMPOS });
+});
+
+// 2. Obtener plantillas y estructuras de reportes guardadas
+app.get('/api/reportes/plantillas', verificarAccesoRH, (req, res) => {
+    db.all('SELECT * FROM reportes_plantillas ORDER BY es_sistema DESC, fecha_creacion DESC', [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const parsed = (rows || []).map(r => {
+            try {
+                return { ...r, campos_seleccionados: JSON.parse(r.campos_seleccionados) };
+            } catch (e) {
+                return { ...r, campos_seleccionados: [] };
+            }
+        });
+        res.json({ success: true, data: parsed });
+    });
+});
+
+// 3. Guardar una nueva estructura de reporte (plantilla)
+app.post('/api/reportes/plantillas', verificarAccesoRH, (req, res) => {
+    const { nombre, descripcion, categoria, campos_seleccionados, creado_por } = req.body;
+    if (!nombre || !campos_seleccionados || !Array.isArray(campos_seleccionados) || campos_seleccionados.length === 0) {
+        return res.status(400).json({ error: 'Debes proporcionar un nombre y al menos un parámetro a exportar.' });
+    }
+
+    const camposJson = JSON.stringify(campos_seleccionados);
+    const sql = `
+        INSERT INTO reportes_plantillas (nombre, descripcion, categoria, campos_seleccionados, creado_por, es_sistema)
+        VALUES (?, ?, ?, ?, ?, 0)
+    `;
+
+    db.run(sql, [nombre.trim(), (descripcion || '').trim(), categoria || 'CONSOLIDADO', camposJson, creado_por || 'Recursos Humanos'], function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({
+            success: true,
+            data: {
+                id: this.lastID,
+                nombre: nombre.trim(),
+                descripcion: (descripcion || '').trim(),
+                categoria: categoria || 'CONSOLIDADO',
+                campos_seleccionados,
+                creado_por: creado_por || 'Recursos Humanos',
+                es_sistema: 0,
+                fecha_creacion: new Date().toISOString()
+            }
+        });
+    });
+});
+
+// 4. Eliminar una plantilla de reporte personalizada
+app.delete('/api/reportes/plantillas/:id', verificarAccesoRH, (req, res) => {
+    const id = req.params.id;
+    db.get('SELECT * FROM reportes_plantillas WHERE id = ?', [id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Plantilla no encontrada.' });
+        if (row.es_sistema === 1) {
+            return res.status(400).json({ error: 'No es posible eliminar las plantillas estándar del sistema.' });
+        }
+
+        db.run('DELETE FROM reportes_plantillas WHERE id = ?', [id], function(delErr) {
+            if (delErr) return res.status(500).json({ error: delErr.message });
+            res.json({ success: true, message: 'Estructura de reporte eliminada exitosamente.' });
+        });
+    });
+});
+
+// 5. Previsualización de datos en vivo (primeras 12 filas)
+app.post('/api/reportes/preview', verificarAccesoRH, async (req, res) => {
+    try {
+        const { campos, fecha_desde, fecha_hasta } = req.body;
+        const result = await buildReportDataset(db, {
+            campos,
+            fecha_desde: fecha_desde || null,
+            fecha_hasta: fecha_hasta || null,
+            limite: 12
+        });
+        res.json({ success: true, ...result });
+    } catch (err) {
+        console.error('Error al generar previsualización de reporte:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// 6. Descarga y exportación completa del archivo en Excel (.xls) o CSV (.csv)
+app.post('/api/reportes/exportar', verificarAccesoRH, async (req, res) => {
+    try {
+        const { formato = 'excel', campos, fecha_desde, fecha_hasta, nombre_reporte } = req.body;
+        const result = await buildReportDataset(db, {
+            campos,
+            fecha_desde: fecha_desde || null,
+            fecha_hasta: fecha_hasta || null
+        });
+
+        const safeTitle = (nombre_reporte || 'Reporte_RDL')
+            .replace(/[^\w\s-]/gi, '')
+            .trim()
+            .replace(/\s+/g, '_') || 'Reporte_RDL';
+        const dateSuffix = new Date().toISOString().split('T')[0];
+        const filename = `${safeTitle}_${dateSuffix}`;
+
+        if (formato === 'csv') {
+            const csvOutput = generateCsv(result.columns, result.rows);
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
+            return res.send(csvOutput);
+        } else {
+            const xmlOutput = generateExcelXml(nombre_reporte || 'Reporte RDL', result.columns, result.rows);
+            res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
+            res.setHeader('Content-Disposition', `attachment; filename="${filename}.xls"`);
+            return res.send(xmlOutput);
+        }
+    } catch (err) {
+        console.error('Error al exportar reporte:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
 });
 
 // Ruta para la pantalla de inicio de sesión

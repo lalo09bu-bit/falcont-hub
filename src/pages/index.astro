@@ -100,6 +100,13 @@ import Header from '../components/Header.astro';
 
                     <!-- Lista Dinámica de Metas -->
 					<div class="metas-list" id="metas-list-container"></div>
+
+                    <!-- Banner de Acceso al Centro de Reportes & Exportadores (Solo RH) -->
+                    <div class="reportes-quick-banner" id="left-panel-reportes-banner" style="display: none; margin-top: 14px;">
+                        <button type="button" class="btn btn-full" onclick="reportesMod.openModal()" style="display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; padding: 10px 14px; background: rgba(15, 118, 110, 0.1); border: 1.5px solid var(--rdl-teal); color: var(--rdl-teal); border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
+                            <span>📊</span> Centro de Reportes & Excel
+                        </button>
+                    </div>
 				</div>
 			</aside>
 
@@ -731,6 +738,145 @@ import Header from '../components/Header.astro';
         </div>
     </div>
 
+	<!-- Modal del Centro de Reportes & Exportadores en Excel (Exclusivo RH) -->
+	<div class="modal-overlay modal-wide-overlay" id="modal-reportes-exportador">
+        <div class="modal-card glass-card reportes-modal-card" style="max-width: 1060px; width: 95vw; max-height: 92vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border-light); padding-bottom: 14px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.6rem;">📊</span>
+                    <div>
+                        <h2 style="font-size: 1.25rem; margin: 0; color: var(--rdl-navy);">Centro de Reportes & Exportadores de Base de Datos</h2>
+                        <span class="role-badge badge-rh" style="margin-top: 4px; display: inline-block;">🔒 Exclusivo Recursos Humanos & Dirección</span>
+                    </div>
+                </div>
+                <button class="btn-close" onclick="reportesMod.closeModal()">✕</button>
+            </div>
+
+            <div class="modal-body" style="overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 16px;">
+                <!-- Barra Superior: Selección de Plantilla y Filtro de Fechas -->
+                <div class="reportes-top-toolbar" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: var(--bg-alt); padding: 14px 16px; border-radius: 10px; border: 1px solid var(--border-light);">
+                    <!-- 1. Plantillas y Estructuras Guardadas -->
+                    <div>
+                        <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-main); display: block; margin-bottom: 6px;">
+                            📁 Estructura / Plantilla de Reporte:
+                        </label>
+                        <div style="display: flex; gap: 8px;">
+                            <select id="select-reporte-plantilla" class="select-sm" style="flex: 1; height: 38px; font-weight: 600;" onchange="reportesMod.selectTemplate(this.value)">
+                                <!-- Se puebla dinámicamente -->
+                            </select>
+                            <button type="button" class="btn btn-sm btn-ghost" onclick="reportesMod.saveCurrentTemplate()" title="Guardar la selección actual como nueva plantilla" style="border: 1px solid var(--border-light); white-space: nowrap;">
+                                💾 Guardar
+                            </button>
+                            <button type="button" class="btn btn-sm btn-ghost" id="btn-delete-template" onclick="reportesMod.deleteCurrentTemplate()" title="Eliminar esta plantilla personalizada" style="display: none; color: #ef4444; border: 1px solid rgba(239,68,68,0.3); padding: 0 10px;">
+                                🗑️
+                            </button>
+                        </div>
+                        <small id="reporte-template-desc" style="display: block; margin-top: 4px; color: var(--text-dim); font-size: 0.74rem;">
+                            Selecciona una estructura para cargar automáticamente las columnas deseadas.
+                        </small>
+                    </div>
+
+                    <!-- 2. Filtro por Rango de Fechas -->
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label style="font-size: 0.82rem; font-weight: 700; color: var(--text-main);">
+                                📅 Rango de Fechas (Filtro):
+                            </label>
+                            <!-- Presets Rápidos -->
+                            <div class="date-presets-group" style="display: flex; gap: 4px;">
+                                <button type="button" class="btn btn-xs date-preset-btn" id="preset-btn-este_mes" onclick="reportesMod.applyDatePreset('este_mes')">Este Mes</button>
+                                <button type="button" class="btn btn-xs date-preset-btn" id="preset-btn-trimestre" onclick="reportesMod.applyDatePreset('trimestre')">Trimestre</button>
+                                <button type="button" class="btn btn-xs date-preset-btn" id="preset-btn-este_anio" onclick="reportesMod.applyDatePreset('este_anio')">Este Año</button>
+                                <button type="button" class="btn btn-xs date-preset-btn active" id="preset-btn-todo" onclick="reportesMod.applyDatePreset('todo')">Todo</button>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="date" id="reporte-fecha-desde" class="input-sm" style="flex: 1; height: 38px;" title="Fecha Desde">
+                            <span style="color: var(--text-dim); font-size: 0.8rem;">al</span>
+                            <input type="date" id="reporte-fecha-hasta" class="input-sm" style="flex: 1; height: 38px;" title="Fecha Hasta">
+                        </div>
+                        <small style="display: block; margin-top: 4px; color: var(--text-dim); font-size: 0.74rem;">
+                            Filtra incidencias, fechas límite de metas y registros para acotar el archivo descargado.
+                        </small>
+                    </div>
+                </div>
+
+                <!-- Área Central de Selección de Parámetros mediante Drag & Drop -->
+                <div class="reportes-dragdrop-workspace" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; min-height: 280px;">
+                    <!-- Columna Izquierda: Parámetros Disponibles en la Base de Datos -->
+                    <div class="params-pool-container" style="display: flex; flex-direction: column; background: #ffffff; border: 1px solid var(--border-light); border-radius: 10px; padding: 12px; overflow: hidden;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h3 style="font-size: 0.9rem; font-weight: 700; margin: 0; color: var(--rdl-navy);">
+                                🧩 Parámetros Disponibles
+                            </h3>
+                            <span style="font-size: 0.75rem; color: var(--text-dim);">Arrastra o haz clic (+)</span>
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <input type="text" id="reporte-search-param" placeholder="🔍 Buscar parámetro (ej: rfc, metas, horas)..." class="input-sm" style="width: 100%; height: 34px; font-size: 0.82rem;">
+                        </div>
+                        <div class="params-pool-scroll" id="available-params-pool" style="flex: 1; overflow-y: auto; max-height: 260px; padding-right: 4px;">
+                            <!-- Se puebla dinámicamente con las categorías y chips -->
+                        </div>
+                    </div>
+
+                    <!-- Columna Derecha: Columnas Seleccionadas para el Excel (Dropzone Reordenable) -->
+                    <div class="params-selected-container" style="display: flex; flex-direction: column; background: #f8fafc; border: 1.5px dashed var(--rdl-teal); border-radius: 10px; padding: 12px; overflow: hidden;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <h3 style="font-size: 0.9rem; font-weight: 700; margin: 0; color: var(--rdl-teal);">
+                                    📋 Columnas a Exportar en Excel
+                                </h3>
+                                <span class="role-badge badge-jr" id="selected-count-badge">0 columnas</span>
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button type="button" class="btn btn-xs btn-ghost" onclick="reportesMod.addAllFields()" title="Incluir todos los parámetros disponibles">+ Todos</button>
+                                <button type="button" class="btn btn-xs btn-ghost" onclick="reportesMod.clearAllFields()" title="Limpiar selección" style="color: #ef4444;">Limpiar</button>
+                            </div>
+                        </div>
+                        <div class="selected-dropzone-scroll" id="selected-columns-dropzone" style="flex: 1; overflow-y: auto; max-height: 295px; padding-right: 4px;">
+                            <!-- Dropzone interactivo se puebla dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección Inferior: Previsualización de Datos en Tiempo Real -->
+                <div class="reportes-preview-section" style="background: #ffffff; border: 1px solid var(--border-light); border-radius: 10px; padding: 14px; margin-top: 4px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 1.1rem;">👁️</span>
+                            <h4 style="font-size: 0.88rem; font-weight: 700; margin: 0; color: var(--rdl-navy);">
+                                Previsualización de Datos en Vivo <small style="color: var(--text-dim); font-weight: normal;">(Muestra representativa de los primeros registros)</small>
+                            </h4>
+                        </div>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">
+                            Total estimado en base de datos: <strong id="reporte-total-preview-count" style="color: var(--accent-green-bright);">0</strong> registros
+                        </span>
+                    </div>
+
+                    <div class="table-container" id="reporte-preview-table-wrapper" style="max-height: 200px; overflow-x: auto; overflow-y: auto; border: 1px solid var(--border-light); border-radius: 6px;">
+                        <!-- Tabla renderizada dinámicamente -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer con Botones de Descarga -->
+            <div class="modal-footer" style="border-top: 1px solid var(--border-light); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+                <span style="font-size: 0.78rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                    💡 <span>Los reportes descargados reflejan la información en tiempo real sin alterar la base de datos.</span>
+                </span>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="btn btn-ghost btn-sm" id="btn-download-csv" onclick="reportesMod.exportar('csv')">
+                        📄 Descargar en CSV (UTF-8)
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-download-excel" onclick="reportesMod.exportar('excel')" style="background: #0f766e; border-color: #14b8a6; font-weight: 700; padding: 8px 18px;">
+                        📥 Descargar en Excel (.xls)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notifications Container -->
     <div id="toast-container" class="toast-container"></div>
 
@@ -743,6 +889,7 @@ import Header from '../components/Header.astro';
 	<script is:inline src="/js/modules/directorio.js"></script>
 	<script is:inline src="/js/modules/perfil.js"></script>
 	<script is:inline src="/js/modules/notificaciones.js"></script>
+	<script is:inline src="/js/modules/reportes.js"></script>
 	<script is:inline src="/js/app.js"></script>
 	<!-- Script de Navegación Responsive para Dispositivos Móviles -->
 	<script is:inline>

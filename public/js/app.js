@@ -213,6 +213,11 @@ class LoginModule {
             }
         }
 
+        // Habilitar Centro de Reportes & Exportadores para Recursos Humanos
+        if (window.reportesMod) {
+            window.reportesMod.checkUserPermissions(user);
+        }
+
         // Ajustar Permisos de Publicación según el Rol
         const composerCard = document.getElementById('post-composer-card');
         const jrNotice = document.getElementById('jr-notice-card');

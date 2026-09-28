@@ -134,6 +134,18 @@ CREATE TABLE IF NOT EXISTS notificaciones (
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
+-- 9. TABLA DE PLANTILLAS Y ESTRUCTURAS DE REPORTES PARA RH
+CREATE TABLE IF NOT EXISTS reportes_plantillas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    descripcion TEXT,
+    categoria TEXT DEFAULT 'CONSOLIDADO',
+    campos_seleccionados TEXT NOT NULL,
+    creado_por TEXT,
+    es_sistema INTEGER DEFAULT 0,
+    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ÍNDICES DE RENDIMIENTO
 CREATE INDEX IF NOT EXISTS idx_feed_fecha ON feed_publicaciones(fecha_creacion DESC);
 CREATE INDEX IF NOT EXISTS idx_metas_usuario ON metas_empleado(usuario_id);
@@ -141,4 +153,5 @@ CREATE INDEX IF NOT EXISTS idx_incidencias_usuario ON incidencias_vacaciones(usu
 CREATE INDEX IF NOT EXISTS idx_auth_tokens_hash ON auth_tokens(token_hash);
 CREATE INDEX IF NOT EXISTS idx_auth_tokens_usuario ON auth_tokens(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(usuario_id, leido);
+CREATE INDEX IF NOT EXISTS idx_reportes_categoria ON reportes_plantillas(categoria);
 

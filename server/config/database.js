@@ -401,6 +401,26 @@ function runMigrations() {
                     console.log("✅ Tabla 'feed_likes' verificada/creada.");
                 }
             });
+
+            // 8. Migración para tabla de plantillas y estructuras de reportes (reportes_plantillas)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS reportes_plantillas (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nombre TEXT NOT NULL,
+                    descripcion TEXT,
+                    categoria TEXT DEFAULT 'CONSOLIDADO',
+                    campos_seleccionados TEXT NOT NULL,
+                    creado_por TEXT,
+                    es_sistema INTEGER DEFAULT 0,
+                    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
+                );
+            `, (err) => {
+                if (!err) {
+                    db.run("CREATE INDEX IF NOT EXISTS idx_reportes_categoria ON reportes_plantillas(categoria);");
+                    console.log("✅ Tabla 'reportes_plantillas' e índices verificados/creados.");
+                    seedReportesPlantillas();
+                }
+            });
         }
     });
 }
@@ -542,6 +562,57 @@ function seedFeedAndMetas() {
             );
 
             insertMeta.finalize();
+        }
+    });
+}
+
+function seedReportesPlantillas() {
+    db.get('SELECT COUNT(*) as count FROM reportes_plantillas', [], (err, row) => {
+        if (!err && row && row.count === 0) {
+            console.log('📊 Sembrando plantillas de reportes estándar para Recursos Humanos...');
+            const plantillas = [
+                {
+                    nombre: 'Plantilla Ficha Integral de Personal (RH Buk)',
+                    descripcion: 'Expediente general del colaborador: puesto, contacto, RFC, contrato, antigüedad y líder.',
+                    categoria: 'COLABORADORES',
+                    campos: JSON.stringify(['numero_empleado', 'nombre', 'rfc', 'email', 'puesto', 'departamento', 'telefono', 'fecha_ingreso', 'antiguedad', 'tipo_contrato', 'estatus_laboral', 'lider_nombre', 'salario_base', 'rol']),
+                    es_sistema: 1
+                },
+                {
+                    nombre: 'Plantilla Auditoría de Vacaciones & Permisos',
+                    descripcion: 'Historial de ausencias justificadas, saldos de vacaciones y permisos por hora y día.',
+                    categoria: 'INCIDENCIAS',
+                    campos: JSON.stringify(['numero_empleado', 'nombre', 'departamento', 'vac_totales', 'vac_tomados', 'vac_disponibles', 'inc_tipo', 'inc_subtipo', 'inc_fecha_inicio', 'inc_fecha_fin', 'inc_horario', 'inc_horas', 'inc_dias', 'inc_motivo', 'inc_estatus', 'inc_lider', 'inc_fecha_solicitud']),
+                    es_sistema: 1
+                },
+                {
+                    nombre: 'Plantilla Evaluación de Desempeño y Metas (100%)',
+                    descripcion: 'Seguimiento de metas ponderadas, avance porcentual, categorías, indicadores y fechas límite.',
+                    categoria: 'METAS',
+                    campos: JSON.stringify(['numero_empleado', 'nombre', 'puesto', 'departamento', 'lider_nombre', 'meta_titulo', 'meta_descripcion', 'meta_indicador', 'meta_peso', 'meta_avance', 'meta_categoria', 'meta_fecha_limite', 'meta_estatus', 'meta_fecha_creacion']),
+                    es_sistema: 1
+                },
+                {
+                    nombre: 'Plantilla Consolidado Corporativo Maestro',
+                    descripcion: 'Visión 360° combinando ficha del colaborador, saldo de vacaciones y desempeño de metas.',
+                    categoria: 'CONSOLIDADO',
+                    campos: JSON.stringify(['numero_empleado', 'nombre', 'rfc', 'email', 'puesto', 'departamento', 'fecha_ingreso', 'estatus_laboral', 'vac_disponibles', 'inc_subtipo', 'inc_dias', 'inc_estatus', 'meta_titulo', 'meta_peso', 'meta_avance', 'meta_estatus', 'lider_nombre']),
+                    es_sistema: 1
+                }
+            ];
+
+            const stmt = db.prepare(`
+                INSERT INTO reportes_plantillas (nombre, descripcion, categoria, campos_seleccionados, creado_por, es_sistema)
+                VALUES (?, ?, ?, ?, ?, ?)
+            `);
+
+            plantillas.forEach(p => {
+                stmt.run(p.nombre, p.descripcion, p.categoria, p.campos, 'Sistema RDL', p.es_sistema);
+            });
+
+            stmt.finalize(() => {
+                console.log('✅ Plantillas de reportes para RH inicializadas con éxito.');
+            });
         }
     });
 }
