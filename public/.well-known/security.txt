@@ -1,0 +1,7 @@
+# RFC 9116 - Security Contact Information for RDL Intelligence Hub
+Contact: mailto:seguridad@rdlabogados.com.mx
+Contact: mailto:ti@adeltaconsultores.com
+Expires: 2027-12-31T23:59:59.000Z
+Preferred-Languages: es, en
+Canonical: https://rdl-intelligence-hub.onrender.com/.well-known/security.txt
+Policy: https://rdlabogados.com.mx/aviso-de-privacidad

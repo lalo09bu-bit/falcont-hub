@@ -6,13 +6,21 @@ interface Props {
 const { title } = Astro.props;
 ---
 
-<!usr/bin/env html>
+<!doctype html>
 <html lang="es">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="description" content="RDL Intelligence Hub - Plataforma Corporativa Interconectada" />
+		<meta name="description" content="RDL Intelligence Hub - Plataforma Corporativa Interconectada para Colaboradores" />
+		<meta name="author" content="RDL Abogados & Adelta Consultores" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="theme-color" content="#10b981" />
+		<meta name="robots" content="noindex, nofollow" />
+
+		<!-- OpenGraph Metadata -->
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content="RDL Intelligence Hub - Plataforma Corporativa Interconectada" />
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content="RDL Intelligence Hub" />
 		
 		<!-- Iconos oficiales RDL para barra de tareas y pestañas -->
 		<link rel="icon" type="image/x-icon" href="/favicon.ico" />

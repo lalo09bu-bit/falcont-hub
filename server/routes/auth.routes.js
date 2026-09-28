@@ -20,13 +20,73 @@ export function esDominioAutorizado(email) {
     return AUTHORIZED_DOMAINS.includes(domain);
 }
 
+// ============================================================
+// CIBERSEGURIDAD: RATE LIMITER & COOKIE SECURITY HELPER
+// ============================================================
+const authAttempts = new Map();
+const AUTH_WINDOW_MS = 15 * 60 * 1000; // Ventana de 15 minutos
+const AUTH_MAX_ATTEMPTS = 25; // 25 intentos por IP cada 15 min
+
+/**
+ * Middleware para prevenir ataques de fuerza bruta y saturación DoS.
+ */
+export function authRateLimiter(req, res, next) {
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const clientData = authAttempts.get(ip) || { count: 0, resetTime: now + AUTH_WINDOW_MS };
+
+    if (now > clientData.resetTime) {
+        clientData.count = 1;
+        clientData.resetTime = now + AUTH_WINDOW_MS;
+    } else {
+        clientData.count++;
+    }
+
+    authAttempts.set(ip, clientData);
+
+    if (clientData.count > AUTH_MAX_ATTEMPTS) {
+        const retryAfterSec = Math.ceil((clientData.resetTime - now) / 1000);
+        res.setHeader('Retry-After', retryAfterSec);
+        return res.status(429).json({
+            success: false,
+            error: `Demasiados intentos de acceso desde esta dirección IP. Por seguridad, espera ${Math.ceil(retryAfterSec / 60)} minuto(s).`,
+            retryAfter: retryAfterSec
+        });
+    }
+
+    next();
+}
+
+// Limpieza periódica de IPs expiradas cada 30 minutos
+setInterval(() => {
+    const now = Date.now();
+    for (const [ip, data] of authAttempts.entries()) {
+        if (now > data.resetTime) authAttempts.delete(ip);
+    }
+}, 30 * 60 * 1000);
+
+/**
+ * Configuración dinámica de seguridad de cookies:
+ * Emite con flag 'Secure' si la conexión es HTTPS (Render / Nube),
+ * y 'false' en conexiones HTTP directas (Azure VM / Red local) para máxima compatibilidad.
+ */
+export function getCookieSecurityOptions(req) {
+    const isHttps = req.secure || (req.headers['x-forwarded-proto'] === 'https') || (process.env.NODE_ENV === 'production' && !req.headers.host?.includes(':'));
+    return {
+        httpOnly: true,
+        secure: isHttps,
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días de validez
+    };
+}
+
 /**
  * POST /api/auth/magic-link
  * Solicita el envío de un Magic Link para inicio de sesión seguro.
  * Verifica que el correo pertenezca a @adeltaconsultore.com o @rdlabogados.com.mx.
  * Si el usuario no existe, indica al frontend que debe auto-registrarse.
  */
-router.post('/magic-link', async (req, res) => {
+router.post('/magic-link', authRateLimiter, async (req, res) => {
     const rawEmail = req.body && req.body.email;
 
     if (!rawEmail || typeof rawEmail !== 'string') {
@@ -104,7 +164,7 @@ router.post('/magic-link', async (req, res) => {
  * Auto-registro de nuevos colaboradores con dominio institucional autorizado (@adeltaconsultore.com o @rdlabogados.com.mx).
  * Registra el perfil de colaborador en la base de datos y despacha el Magic Link de activación al correo.
  */
-router.post('/register-magic', async (req, res) => {
+router.post('/register-magic', authRateLimiter, async (req, res) => {
     const { nombre, email: rawEmail, puesto, departamento, telefono } = req.body || {};
 
     if (!nombre || typeof nombre !== 'string' || nombre.trim().length < 3) {
@@ -223,7 +283,7 @@ router.post('/register-magic', async (req, res) => {
  * Inicio de sesión directo mediante RFC y Correo Institucional Autorizado.
  * Si las credenciales coinciden con un colaborador activo, genera JWT y sesión directa.
  */
-router.post('/login-rfc', (req, res) => {
+router.post('/login-rfc', authRateLimiter, (req, res) => {
     const { rfc: rawRfc, email: rawEmail } = req.body || {};
 
     if (!rawRfc || typeof rawRfc !== 'string' || !rawRfc.trim()) {
@@ -288,12 +348,7 @@ router.post('/login-rfc', (req, res) => {
 
         const jwtToken = generarJwt(usuario);
 
-        res.cookie('rdl_session', jwtToken, {
-            httpOnly: true,
-            secure: false, // Compatible con HTTP (Azure VM / IP Local) y HTTPS (Render)
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000
-        });
+        res.cookie('rdl_session', jwtToken, getCookieSecurityOptions(req));
 
         console.log(`🔐 Sesión iniciada con éxito (RFC): ${usuario.nombre} (${usuario.rfc})`);
 
@@ -311,7 +366,7 @@ router.post('/login-rfc', (req, res) => {
  * Alta de nuevo perfil de colaborador con RFC y Correo Institucional.
  * Registra e inicia sesión de inmediato (sin esperas de correo).
  */
-router.post('/register-rfc', (req, res) => {
+router.post('/register-rfc', authRateLimiter, (req, res) => {
     const { rfc: rawRfc, email: rawEmail, nombre: rawNombre, puesto, departamento, telefono } = req.body || {};
 
     if (!rawRfc || typeof rawRfc !== 'string' || !rawRfc.trim()) {
@@ -348,12 +403,7 @@ router.post('/register-rfc', (req, res) => {
             if (existing.email.toLowerCase() === email && existing.rfc && existing.rfc.toUpperCase() === rfc) {
                 // Ya existe exactamente este usuario: iniciar sesión de una vez
                 const jwtToken = generarJwt(existing);
-                res.cookie('rdl_session', jwtToken, {
-                    httpOnly: true,
-                    secure: false,
-                    sameSite: 'lax',
-                    maxAge: 7 * 24 * 60 * 60 * 1000
-                });
+                res.cookie('rdl_session', jwtToken, getCookieSecurityOptions(req));
                 return res.json({
                     success: true,
                     alreadyRegistered: true,
@@ -420,12 +470,7 @@ router.post('/register-rfc', (req, res) => {
 
             const jwtToken = generarJwt(nuevoUsuario);
 
-            res.cookie('rdl_session', jwtToken, {
-                httpOnly: true,
-                secure: false,
-                sameSite: 'lax',
-                maxAge: 7 * 24 * 60 * 60 * 1000
-            });
+            res.cookie('rdl_session', jwtToken, getCookieSecurityOptions(req));
 
             console.log(`✅ Nuevo colaborador dado de alta e iniciado: ${nombre} (${rfc} / ${email}) ID: ${nuevoUsuarioId}`);
 
@@ -462,12 +507,7 @@ router.get('/verify', async (req, res) => {
         // Generar JWT y asignar cookie segura httpOnly
         const jwtToken = generarJwt(usuario);
 
-        res.cookie('rdl_session', jwtToken, {
-            httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días de validez
-        });
+        res.cookie('rdl_session', jwtToken, getCookieSecurityOptions(req));
 
         console.log(`🔐 Sesión iniciada con éxito para: ${usuario.nombre} (${usuario.email})`);
         return res.redirect(`/?token=${encodeURIComponent(jwtToken)}`);
@@ -494,8 +534,8 @@ router.get('/me', verificarSesion, (req, res) => {
  */
 router.post('/logout', (req, res) => {
     res.clearCookie('rdl_session', {
-        httpOnly: true,
-        sameSite: 'lax'
+        ...getCookieSecurityOptions(req),
+        maxAge: 0
     });
 
     return res.json({
@@ -538,12 +578,7 @@ router.get('/dev-login', (req, res) => {
 
         const jwtToken = generarJwt(usuario);
 
-        res.cookie('rdl_session', jwtToken, {
-            httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000
-        });
+        res.cookie('rdl_session', jwtToken, getCookieSecurityOptions(req));
 
         console.log(`⚡ [DEV LOGIN] Sesión instantánea iniciada como: ${usuario.nombre} (${usuario.rfc || usuario.rol})`);
         return res.redirect(`/?token=${encodeURIComponent(jwtToken)}`);

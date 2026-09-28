@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /api/
+Disallow: /private/
+Allow: /
+Allow: /login
+
+Sitemap: https://rdl-intelligence-hub.onrender.com/sitemap.xml

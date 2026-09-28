@@ -21,6 +21,45 @@ const PORT = process.env.PORT || 9060;
 // Soporte para Render y balanceadores de carga / proxies HTTPS
 app.set('trust proxy', 1);
 
+// ============================================================
+// CIBERSEGURIDAD: OWASP HEADERS & PROTECCIÓN DE INFRAESTRUCTURA
+// ============================================================
+app.disable('x-powered-by');
+
+app.use((req, res, next) => {
+    // 1. Prevenir ataques de clickjacking
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+
+    // 2. Prevenir MIME-type sniffing
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    // 3. Forzar HTTPS estricto (HSTS) en producción / proxies SSL
+    const isHttps = req.secure || (req.headers['x-forwarded-proto'] === 'https');
+    if (isHttps) {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    }
+
+    // 4. Política de referencias (previene fuga de tokens en URL)
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+    // 5. Restricción de permisos y APIs del hardware cliente
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+    // 6. Content Security Policy (compatible con Astro, GSAP, Google Fonts y WebSockets)
+    res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'self'; " +
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; " +
+        "font-src 'self' https://fonts.gstatic.com data:; " +
+        "img-src 'self' data: blob: https:; " +
+        "connect-src 'self' wss: ws: https: http:; " +
+        "frame-ancestors 'self';"
+    );
+
+    next();
+});
+
 app.use(cookieParser());
 app.use(cors({
     origin: true,
@@ -659,9 +698,10 @@ app.get('*', (req, res) => {
 
     // Si el token provino de la URL o header y no estaba en cookie, establecer la cookie en la respuesta
     if ((queryToken || headerToken) && !cookieToken) {
+        const isHttps = req.secure || (req.headers['x-forwarded-proto'] === 'https') || (process.env.NODE_ENV === 'production' && !req.headers.host?.includes(':'));
         res.cookie('rdl_session', token, {
             httpOnly: true,
-            secure: false,
+            secure: isHttps,
             sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
