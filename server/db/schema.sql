@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS usuarios (
     estatus_laboral TEXT CHECK(estatus_laboral IN ('ACTIVO', 'INACTIVO', 'LICENCIA')) NOT NULL DEFAULT 'ACTIVO',
     dias_vacaciones_totales INTEGER NOT NULL DEFAULT 15,
     dias_vacaciones_tomados INTEGER NOT NULL DEFAULT 3,
-    dias_vacaciones_restantes INTEGER GENERATED ALWAYS AS (dias_vacaciones_totales - dias_vacaciones_tomados) STORED
+    dias_vacaciones_restantes INTEGER GENERATED ALWAYS AS (dias_vacaciones_totales - dias_vacaciones_tomados) STORED,
+    lider_id INTEGER DEFAULT NULL,
+    FOREIGN KEY (lider_id) REFERENCES usuarios(id) ON DELETE SET NULL
 );
 
 -- 2. TABLA DE COMUNICACIÓN GENERAL / MURO ESTILO FACEBOOK
@@ -82,21 +84,27 @@ CREATE TABLE IF NOT EXISTS metas_empleado (
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
--- 6. TABLA DE SOLICITUDES DE VACACIONES E INCIDENCIAS
+-- 6. TABLA DE SOLICITUDES DE VACACIONES E INCIDENCIAS (PERMISOS POR HORA Y DÍA)
 CREATE TABLE IF NOT EXISTS incidencias_vacaciones (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario_id INTEGER NOT NULL,
     usuario_nombre TEXT NOT NULL,
     usuario_rol TEXT NOT NULL,
-    tipo TEXT CHECK(tipo IN ('Vacaciones', 'Permiso Especial', 'Incapacidad', 'Falta Justificada')) NOT NULL DEFAULT 'Vacaciones',
+    tipo TEXT NOT NULL DEFAULT 'Vacaciones',
+    subtipo TEXT DEFAULT 'VACACIONES',
     fecha_inicio DATE NOT NULL,
     fecha_fin DATE NOT NULL,
+    hora_inicio TEXT DEFAULT NULL,
+    hora_fin TEXT DEFAULT NULL,
+    horas_solicitadas REAL DEFAULT 0,
     dias_solicitados INTEGER NOT NULL DEFAULT 1,
     motivo TEXT NOT NULL,
     estatus TEXT CHECK(estatus IN ('PENDIENTE', 'APROBADO', 'RECHAZADO')) NOT NULL DEFAULT 'PENDIENTE',
+    lider_id INTEGER DEFAULT NULL,
     aprobado_por TEXT DEFAULT NULL,
     fecha_solicitud DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+    FOREIGN KEY (lider_id) REFERENCES usuarios(id) ON DELETE SET NULL
 );
 
 -- 7. TABLA DE TOKENS DE AUTENTICACIÓN (MAGIC LINKS)
@@ -110,9 +118,27 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
+-- 8. TABLA DE NOTIFICACIONES EN TIEMPO REAL
+CREATE TABLE IF NOT EXISTS notificaciones (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    remitente_id INTEGER NOT NULL,
+    remitente_nombre TEXT NOT NULL,
+    remitente_avatar TEXT,
+    tipo TEXT NOT NULL,
+    titulo TEXT NOT NULL,
+    mensaje TEXT NOT NULL,
+    referencia_id INTEGER,
+    leido INTEGER DEFAULT 0 CHECK(leido IN (0, 1)),
+    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
 -- ÍNDICES DE RENDIMIENTO
 CREATE INDEX IF NOT EXISTS idx_feed_fecha ON feed_publicaciones(fecha_creacion DESC);
 CREATE INDEX IF NOT EXISTS idx_metas_usuario ON metas_empleado(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_incidencias_usuario ON incidencias_vacaciones(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_auth_tokens_hash ON auth_tokens(token_hash);
 CREATE INDEX IF NOT EXISTS idx_auth_tokens_usuario ON auth_tokens(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(usuario_id, leido);
+

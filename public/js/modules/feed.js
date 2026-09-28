@@ -173,7 +173,8 @@ class FeedModule {
 
     async loadFeed() {
         try {
-            const res = await fetch('/api/feed');
+            const uid = window.currentUser ? window.currentUser.id : '';
+            const res = await fetch(`/api/feed${uid ? `?usuario_id=${uid}` : ''}`);
             const data = await res.json();
             if (data.success) {
                 this.posts = data.data;
@@ -207,6 +208,8 @@ class FeedModule {
             if (post.categoria === 'Urgente') catColor = 'badge-admin';
             else if (post.categoria === 'Aviso Legal') catColor = 'badge-rh';
 
+            const isLiked = post.user_has_liked === 1 || post.user_has_liked === true;
+
             card.innerHTML = `
                 <div class="post-author-bar">
                     <div class="post-author-avatar">${initials}</div>
@@ -227,8 +230,8 @@ class FeedModule {
                 ` : ''}
 
                 <div class="post-interactions">
-                    <button class="btn-like" onclick="feedMod.darLike(${post.id})">
-                        👍 Me Gusta (<span id="like-count-${post.id}">${post.likes_count}</span>)
+                    <button class="btn-like ${isLiked ? 'liked' : ''}" id="btn-like-${post.id}" onclick="feedMod.darLike(${post.id})">
+                        👍 <span>${isLiked ? 'Te gusta' : 'Me Gusta'}</span> (<span id="like-count-${post.id}">${post.likes_count}</span>)
                     </button>
                     <span class="comments-count">💬 ${post.comentarios_count || 0} Comentarios</span>
                 </div>
@@ -319,12 +322,35 @@ class FeedModule {
     }
 
     async darLike(postID) {
+        const user = window.currentUser;
+        const usuario_id = user ? user.id : 1;
         try {
-            const res = await fetch(`/api/feed/${postID}/like`, { method: 'POST' });
+            const res = await fetch(`/api/feed/${postID}/like`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usuario_id })
+            });
             const data = await res.json();
             if (data.success) {
                 const countEl = document.getElementById(`like-count-${postID}`);
                 if (countEl) countEl.textContent = data.data.likes_count;
+
+                const btn = document.getElementById(`btn-like-${postID}`);
+                if (btn) {
+                    if (data.data.action === 'liked') {
+                        btn.classList.add('liked');
+                        btn.innerHTML = `👍 <span>Te gusta</span> (<span id="like-count-${postID}">${data.data.likes_count}</span>)`;
+                    } else {
+                        btn.classList.remove('liked');
+                        btn.innerHTML = `👍 <span>Me Gusta</span> (<span id="like-count-${postID}">${data.data.likes_count}</span>)`;
+                    }
+                }
+
+                const post = this.posts.find(p => p.id === postID);
+                if (post) {
+                    post.likes_count = data.data.likes_count;
+                    post.user_has_liked = data.data.action === 'liked' ? 1 : 0;
+                }
             }
         } catch (err) {
             console.error('Error al dar like:', err);
@@ -345,6 +371,20 @@ class FeedModule {
             this.posts[idx].likes_count = data.likes_count;
             const countEl = document.getElementById(`like-count-${data.id}`);
             if (countEl) countEl.textContent = data.likes_count;
+
+            if (window.currentUser && data.usuario_id === window.currentUser.id) {
+                this.posts[idx].user_has_liked = data.action === 'liked' ? 1 : 0;
+                const btn = document.getElementById(`btn-like-${data.id}`);
+                if (btn) {
+                    if (data.action === 'liked') {
+                        btn.classList.add('liked');
+                        btn.innerHTML = `👍 <span>Te gusta</span> (<span id="like-count-${data.id}">${data.likes_count}</span>)`;
+                    } else {
+                        btn.classList.remove('liked');
+                        btn.innerHTML = `👍 <span>Me Gusta</span> (<span id="like-count-${data.id}">${data.likes_count}</span>)`;
+                    }
+                }
+            }
         }
     }
 }

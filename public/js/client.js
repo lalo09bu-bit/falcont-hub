@@ -79,11 +79,20 @@ class ClientSocketHandler {
             }
         });
 
-        // 5. Nueva solicitud de vacaciones (para Admin / SR)
+        // 5. Notificación Personal en Tiempo Real (Líder Directo o Solicitante)
+        this.socket.on('notificacion:nueva', (notif) => {
+            console.log('🔔 Real-time: Nueva notificación recibida:', notif);
+            window.dispatchEvent(new CustomEvent('rdl_nueva_notificacion', { detail: notif }));
+            this.showToast(`🔔 ${notif.titulo}: ${notif.mensaje}`, 'info');
+        });
+
+        // 5.1 Nueva solicitud de incidencia/permiso en el sistema
         this.socket.on('incidencia:nueva', (inc) => {
             window.dispatchEvent(new CustomEvent('rdl_nueva_incidencia', { detail: inc }));
-            if (window.currentUser && (window.currentUser.rol === 'ADMIN' || window.currentUser.rol === 'ABOGADA_SR')) {
-                this.showToast(`📝 Nueva Solicitud de ${inc.tipo} de ${inc.usuario_nombre}`, 'info');
+            const isTargetLeader = window.currentUser && inc.lider_id && window.currentUser.id === inc.lider_id;
+            const isManager = window.currentUser && (window.currentUser.rol === 'ADMIN' || window.currentUser.rol === 'RH' || window.currentUser.rol === 'ADMIN_RH');
+            if (isTargetLeader || isManager) {
+                this.showToast(`📝 ${inc.usuario_nombre} envió solicitud de ${inc.tipo} (${inc.subtipo || ''})`, 'info');
             }
         });
 

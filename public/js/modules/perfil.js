@@ -245,6 +245,12 @@ class PerfilModule {
                     <span class="buk-detail-label">📅 Fecha de Ingreso</span>
                     <span class="buk-detail-val">${perfil.fecha_ingreso || '2026-01-15'} <small style="color: var(--text-dim);">(${antiguedadTxt})</small></span>
                 </div>
+                <div class="buk-detail-card" style="border-left: 3px solid var(--accent-green-bright);">
+                    <span class="buk-detail-label">👑 Líder Directo (Supervisor)</span>
+                    <span class="buk-detail-val" style="color: var(--accent-green-bright); font-weight: 700;">
+                        ${perfil.lider_nombre ? `👑 ${perfil.lider_nombre}` : 'Dirección General de RH'}
+                    </span>
+                </div>
                 <div class="buk-detail-card">
                     <span class="buk-detail-label">📝 Tipo de Contrato</span>
                     <span class="buk-detail-val">${perfil.tipo_contrato || 'Tiempo Indeterminado'}</span>
@@ -585,7 +591,7 @@ class PerfilModule {
         reader.readAsDataURL(file);
     }
 
-    openEditGeneralDataModal() {
+    async openEditGeneralDataModal() {
         if (!this.userData || !this.userData.perfil) return;
         const p = this.userData.perfil;
 
@@ -600,6 +606,32 @@ class PerfilModule {
         document.getElementById('edit-buk-numero-empleado').value = p.numero_empleado || '';
         document.getElementById('edit-buk-salario-base').value = p.salario_base || '';
         document.getElementById('edit-buk-estatus-laboral').value = p.estatus_laboral || 'Activo';
+
+        // Poblar catálogo de líderes directos disponibles
+        const liderSelect = document.getElementById('edit-buk-lider-id');
+        if (liderSelect) {
+            liderSelect.innerHTML = '<option value="">-- Sin Líder Asignado (Canalizar a Dirección de RH) --</option>';
+            try {
+                const res = await fetch('/api/usuarios');
+                const data = await res.json();
+                if (data.success && Array.isArray(data.data)) {
+                    data.data.forEach(u => {
+                        // Evitar asignarse a sí mismo como líder
+                        if (u.id !== this.currentUserId) {
+                            const opt = document.createElement('option');
+                            opt.value = u.id;
+                            opt.textContent = `${u.nombre} (${u.puesto || u.rol})`;
+                            if (p.lider_id && parseInt(p.lider_id, 10) === parseInt(u.id, 10)) {
+                                opt.selected = true;
+                            }
+                            liderSelect.appendChild(opt);
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error('Error al cargar catálogo de líderes:', err);
+            }
+        }
 
         document.getElementById('modal-editar-perfil-datos').classList.add('active');
     }
@@ -624,6 +656,8 @@ class PerfilModule {
         const numero_empleado = document.getElementById('edit-buk-numero-empleado').value.trim();
         const salario_base = parseFloat(document.getElementById('edit-buk-salario-base').value) || null;
         const estatus_laboral = document.getElementById('edit-buk-estatus-laboral').value;
+        const liderSelect = document.getElementById('edit-buk-lider-id');
+        const lider_id = (liderSelect && liderSelect.value) ? parseInt(liderSelect.value, 10) : null;
 
         try {
             const res = await fetch(`/api/colaboradores/${this.currentUserId}`, {
@@ -639,19 +673,20 @@ class PerfilModule {
                     tipo_contrato,
                     numero_empleado,
                     salario_base,
-                    estatus_laboral
+                    estatus_laboral,
+                    lider_id
                 })
             });
 
             const data = await res.json();
             if (data.success) {
                 if (window.clientSocket) {
-                    window.clientSocket.showToast('Datos de colaboradora actualizados.', 'success');
+                    window.clientSocket.showToast('Datos de colaboradora y líder directo actualizados.', 'success');
                 }
                 this.closeEditGeneralDataModal();
                 this.loadProfileData(this.currentUserId);
 
-                // Si es el usuario logueado, actualizar ficha principal
+                // Si es el usuario logueado, actualizar ficha principal y líder en sesión
                 if (window.currentUser && window.currentUser.id === this.currentUserId) {
                     window.currentUser = { ...window.currentUser, ...data.data };
                     if (window.empleadoMod) {

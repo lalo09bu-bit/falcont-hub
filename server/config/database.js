@@ -181,13 +181,16 @@ function initDatabase() {
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
         db.exec(schemaSql, (err) => {
             if (err) {
-                console.error('❌ Error al aplicar esquema RDL:', err.message);
+                console.warn('⚠️ Aviso al aplicar esquema RDL inicial (se continuará con migraciones):', err.message);
             } else {
                 console.log('✅ Esquema RDL Intelligence Hub verificado/creado');
-                runMigrations();
-                seedRdlData();
             }
+            runMigrations();
+            seedRdlData();
         });
+    } else {
+        runMigrations();
+        seedRdlData();
     }
 }
 
@@ -283,6 +286,15 @@ function runMigrations() {
                 applyDefaultRfcs();
             }
 
+            if (!colNames.includes('lider_id')) {
+                db.run("ALTER TABLE usuarios ADD COLUMN lider_id INTEGER DEFAULT NULL", (alterErr) => {
+                    if (!alterErr) {
+                        console.log("✅ Columna 'lider_id' agregada a usuarios.");
+                        db.run("CREATE INDEX IF NOT EXISTS idx_usuarios_lider ON usuarios(lider_id);");
+                    }
+                });
+            }
+
             // 3. Garantizar perfil de Recursos Humanos (RH) con acceso total
             db.get("SELECT id FROM usuarios WHERE rol = 'RH' OR email = 'rh@rdl.com.mx'", [], (err, rhUser) => {
                 if (!err && !rhUser) {
@@ -314,6 +326,79 @@ function runMigrations() {
                     db.run("CREATE INDEX IF NOT EXISTS idx_auth_tokens_hash ON auth_tokens(token_hash);");
                     db.run("CREATE INDEX IF NOT EXISTS idx_auth_tokens_usuario ON auth_tokens(usuario_id);");
                     console.log("✅ Tabla 'auth_tokens' e índices verificados/creados.");
+                }
+            });
+
+            // 5. Migración para incidencias_vacaciones (Modalidades de Ausencias: Permisos x hora/día y líder)
+            db.all("PRAGMA table_info(incidencias_vacaciones)", [], (incErr, incColumns) => {
+                if (!incErr && incColumns && incColumns.length > 0) {
+                    const incColNames = incColumns.map(c => c.name);
+                    if (!incColNames.includes('lider_id')) {
+                        db.run("ALTER TABLE incidencias_vacaciones ADD COLUMN lider_id INTEGER DEFAULT NULL", () => {
+                            console.log("✅ Columna 'lider_id' agregada a incidencias_vacaciones.");
+                        });
+                    }
+                    if (!incColNames.includes('subtipo')) {
+                        db.run("ALTER TABLE incidencias_vacaciones ADD COLUMN subtipo TEXT DEFAULT 'VACACIONES'", () => {
+                            console.log("✅ Columna 'subtipo' agregada a incidencias_vacaciones.");
+                        });
+                    }
+                    if (!incColNames.includes('hora_inicio')) {
+                        db.run("ALTER TABLE incidencias_vacaciones ADD COLUMN hora_inicio TEXT DEFAULT NULL", () => {
+                            console.log("✅ Columna 'hora_inicio' agregada a incidencias_vacaciones.");
+                        });
+                    }
+                    if (!incColNames.includes('hora_fin')) {
+                        db.run("ALTER TABLE incidencias_vacaciones ADD COLUMN hora_fin TEXT DEFAULT NULL", () => {
+                            console.log("✅ Columna 'hora_fin' agregada a incidencias_vacaciones.");
+                        });
+                    }
+                    if (!incColNames.includes('horas_solicitadas')) {
+                        db.run("ALTER TABLE incidencias_vacaciones ADD COLUMN horas_solicitadas REAL DEFAULT 0", () => {
+                            console.log("✅ Columna 'horas_solicitadas' agregada a incidencias_vacaciones.");
+                        });
+                    }
+                }
+            });
+
+            // 6. Migración para tabla de notificaciones
+            db.run(`
+                CREATE TABLE IF NOT EXISTS notificaciones (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    usuario_id INTEGER NOT NULL,
+                    remitente_id INTEGER NOT NULL,
+                    remitente_nombre TEXT NOT NULL,
+                    remitente_avatar TEXT,
+                    tipo TEXT NOT NULL,
+                    titulo TEXT NOT NULL,
+                    mensaje TEXT NOT NULL,
+                    referencia_id INTEGER,
+                    leido INTEGER DEFAULT 0 CHECK(leido IN (0, 1)),
+                    fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+                );
+            `, (err) => {
+                if (!err) {
+                    db.run("CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(usuario_id, leido);");
+                    console.log("✅ Tabla 'notificaciones' e índices verificados/creados.");
+                }
+            });
+
+            // 7. Migración para tabla feed_likes (Control estricto de 1 like por usuario)
+            db.run(`
+                CREATE TABLE IF NOT EXISTS feed_likes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    publicacion_id INTEGER NOT NULL,
+                    usuario_id INTEGER NOT NULL,
+                    fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(publicacion_id, usuario_id),
+                    FOREIGN KEY (publicacion_id) REFERENCES feed_publicaciones(id) ON DELETE CASCADE,
+                    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+                );
+            `, (err) => {
+                if (!err) {
+                    db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_feed_likes_pub_user ON feed_likes(publicacion_id, usuario_id);");
+                    console.log("✅ Tabla 'feed_likes' verificada/creada.");
                 }
             });
         }

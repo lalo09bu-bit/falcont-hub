@@ -269,42 +269,135 @@ import Header from '../components/Header.astro';
         </div>
     </div>
 
-	<!-- Modal de Vacaciones -->
+	<!-- Modal de Ausencias: Vacaciones y Permisos con/sin goce por hora o día -->
 	<div class="modal-overlay" id="modal-vacaciones">
-        <div class="modal-card glass-card">
+        <div class="modal-card glass-card" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column;">
             <div class="modal-header">
-                <h2>Solicitud de Vacaciones e Incidencias</h2>
+                <h2>📋 Justificación de Ausencias & Incidencias</h2>
                 <button class="btn-close" onclick="vacacionesMod.closeModal()">✕</button>
             </div>
-            <div class="modal-body">
-                <form id="form-solicitar-vacaciones">
+            <div class="modal-body" style="overflow-y: auto; padding-right: 6px;">
+                <!-- Pestañas de Modalidad de Ausencia -->
+                <div class="ausencia-modal-tabs" style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border-light); padding-bottom: 10px;">
+                    <button type="button" class="btn btn-sm btn-primary active" id="tab-btn-vacaciones" onclick="vacacionesMod.switchTab('vacaciones')" style="flex: 1;">
+                        🏖️ 1. Vacaciones
+                    </button>
+                    <button type="button" class="btn btn-sm btn-ghost" id="tab-btn-permisos" onclick="vacacionesMod.switchTab('permisos')" style="flex: 1;">
+                        ⏱️ 2. Permiso de Ausencia (Hora / Día)
+                    </button>
+                </div>
+
+                <!-- Aviso de Notificación al Líder Directo -->
+                <div class="leader-notify-banner" id="ausencia-leader-banner" style="display: flex; align-items: center; gap: 10px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px;">
+                    <span style="font-size: 1.4rem;">👑</span>
+                    <div style="font-size: 0.84rem; line-height: 1.4; color: var(--text-main);">
+                        <strong>Autorización y Notificación:</strong> Esta solicitud será notificada y enviada para autorización a tu líder directo: <span id="vac-target-leader-name" style="color: var(--accent-green-bright); font-weight: 700;">Dirección de RH</span>.
+                    </div>
+                </div>
+
+                <!-- Formulario 1: Vacaciones -->
+                <form id="form-solicitar-vacaciones" onsubmit="vacacionesMod.submitVacaciones(event)">
+                    <div class="vacations-balance-notice" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: var(--bg-alt); padding: 8px 12px; border-radius: 6px;">
+                        <span style="font-size: 0.85rem; color: var(--text-muted);">Saldo actual disponible:</span>
+                        <strong id="vac-available-days-badge" style="color: var(--accent-green-bright); font-size: 1rem;">10 días libres</strong>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
                             <label>Fecha Inicio</label>
-                            <input type="date" id="vac-inicio" required>
+                            <input type="date" id="vac-inicio" onchange="vacacionesMod.calcVacationDays()" required>
                         </div>
                         <div class="form-group">
                             <label>Fecha Fin</label>
-                            <input type="date" id="vac-fin" required>
+                            <input type="date" id="vac-fin" onchange="vacacionesMod.calcVacationDays()" required>
                         </div>
                     </div>
+
+                    <div id="vac-days-calculated-badge" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; padding: 6px 10px; background: rgba(255,255,255,0.04); border-radius: 4px;">
+                        Días a solicitar: <strong style="color: var(--text-main);">0 días</strong>
+                    </div>
+
                     <div class="form-group">
                         <label>Motivo de la Solicitud</label>
-                        <textarea id="vac-motivo" rows="2" placeholder="Motivo o justificación..." required></textarea>
+                        <textarea id="vac-motivo" rows="2" placeholder="Motivo o justificación del periodo vacacional..." required></textarea>
                     </div>
-                    <button type="submit" class="btn btn-secondary btn-full">Enviar Solicitud en Tiempo Real</button>
+
+                    <button type="submit" class="btn btn-primary btn-full">
+                        ✈️ Enviar Solicitud de Vacaciones
+                    </button>
                 </form>
 
-                <div class="divider" style="margin: 20px 0;"></div>
+                <!-- Formulario 2: Permisos de Ausencia (Hora / Día con y sin goce) -->
+                <form id="form-solicitar-permiso" class="hidden" onsubmit="vacacionesMod.submitPermiso(event)">
+                    <div class="form-group">
+                        <label>Modalidad de Permiso</label>
+                        <select id="permiso-subtipo" class="select-sm" style="width: 100%; height: 40px; font-weight: 600;" onchange="vacacionesMod.onPermisoSubtipoChange(this.value)">
+                            <option value="HORA_CON_GOCE">⏱️ Permiso por HORA — Con Goce de Sueldo</option>
+                            <option value="HORA_SIN_GOCE">⏱️ Permiso por HORA — Sin Goce de Sueldo</option>
+                            <option value="DIA_CON_GOCE">📅 Permiso por DÍA — Con Goce de Sueldo</option>
+                            <option value="DIA_SIN_GOCE">📅 Permiso por DÍA — Sin Goce de Sueldo</option>
+                        </select>
+                    </div>
 
-                <h3>Historial y Aprobaciones del Equipo</h3>
+                    <!-- Campos para Permiso por HORA -->
+                    <div id="wrapper-permiso-hora">
+                        <div class="form-group">
+                            <label>Fecha del Permiso</label>
+                            <input type="date" id="permiso-hora-fecha">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Hora de Inicio</label>
+                                <input type="time" id="permiso-hora-inicio" value="09:00" onchange="vacacionesMod.calcPermisoHours()">
+                            </div>
+                            <div class="form-group">
+                                <label>Hora de Fin</label>
+                                <input type="time" id="permiso-hora-fin" value="12:00" onchange="vacacionesMod.calcPermisoHours()">
+                            </div>
+                        </div>
+                        <div id="permiso-hours-calculated-badge" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; padding: 6px 10px; background: rgba(255,255,255,0.04); border-radius: 4px;">
+                            Tiempo a justificar: <strong style="color: var(--accent-green-bright);">3.0 horas</strong>
+                        </div>
+                    </div>
+
+                    <!-- Campos para Permiso por DÍA -->
+                    <div id="wrapper-permiso-dia" class="hidden">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Fecha de Inicio</label>
+                                <input type="date" id="permiso-dia-inicio" onchange="vacacionesMod.calcPermisoDays()">
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha de Fin</label>
+                                <input type="date" id="permiso-dia-fin" onchange="vacacionesMod.calcPermisoDays()">
+                            </div>
+                        </div>
+                        <div id="permiso-days-calculated-badge" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; padding: 6px 10px; background: rgba(255,255,255,0.04); border-radius: 4px;">
+                            Total de días: <strong style="color: var(--accent-green-bright);">1 día</strong>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Motivo o Justificación Detallada</label>
+                        <textarea id="permiso-motivo" rows="2" placeholder="Describe el motivo del permiso (ej: cita médica, asunto personal, trámite oficial)..." required></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-full" style="background: var(--rdl-teal);">
+                        📩 Enviar Solicitud de Permiso al Líder Directo
+                    </button>
+                </form>
+
+                <div class="divider" style="margin: 22px 0 16px 0;"></div>
+
+                <h3>Historial de Solicitudes y Resoluciones</h3>
                 <div class="table-container" style="max-height: 250px; overflow-y: auto; margin-top: 10px;">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>Colaboradora</th>
-                                <th>Tipo</th>
-                                <th>Días</th>
+                                <th>Colaborador</th>
+                                <th>Modalidad</th>
+                                <th>Tiempo / Horario</th>
+                                <th>Líder Asignado</th>
                                 <th>Estatus</th>
                                 <th>Acción</th>
                             </tr>
@@ -576,6 +669,13 @@ import Header from '../components/Header.astro';
                     </div>
 
                     <div class="form-group">
+                        <label>👑 Líder Directo (Supervisor para Autorización de Permisos y Vacaciones)</label>
+                        <select id="edit-buk-lider-id" class="select-sm" style="width: 100%; height: 38px;">
+                            <option value="">-- Sin Líder Asignado (Canalizar a Dirección de RH) --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label>Salario Base Mensual (Opcional / Privado)</label>
                         <input type="number" id="edit-buk-salario-base" placeholder="Ej: 25000">
                     </div>
@@ -642,6 +742,7 @@ import Header from '../components/Header.astro';
 	<script is:inline src="/js/modules/vacaciones.js"></script>
 	<script is:inline src="/js/modules/directorio.js"></script>
 	<script is:inline src="/js/modules/perfil.js"></script>
+	<script is:inline src="/js/modules/notificaciones.js"></script>
 	<script is:inline src="/js/app.js"></script>
 	<!-- Script de Navegación Responsive para Dispositivos Móviles -->
 	<script is:inline>

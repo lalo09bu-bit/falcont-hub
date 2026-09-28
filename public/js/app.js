@@ -192,6 +192,16 @@ class LoginModule {
             window.feedMod.loadFeed();
         }
 
+        // Cargar Notificaciones del Colaborador
+        if (window.notificacionesMod) {
+            window.notificacionesMod.initUser(user);
+        }
+
+        // Conectar al canal personal de Socket.io
+        if (window.clientSocket && window.clientSocket.socket) {
+            window.clientSocket.socket.emit('join_room', user);
+        }
+
         // Habilitar botón de administración de metas para Admin, Abogada SR y Recursos Humanos (RH)
         const isManager = user.rol === 'ADMIN' || user.rol === 'ABOGADA_SR' || user.rol === 'RH' || user.rol === 'ADMIN_RH';
         const btnAdminMetas = document.getElementById('btn-admin-manage-metas');

@@ -41,6 +41,23 @@
     </div>
 
     <div class="header-user-profile">
+        <!-- Campana de Notificaciones en Tiempo Real -->
+        <div class="notifications-wrapper" id="notifications-wrapper">
+            <button class="btn-notification-bell" id="btn-notifications-toggle" onclick="notificacionesMod.toggleDropdown()" title="Notificaciones del Sistema">
+                🔔
+                <span class="notification-badge hidden" id="notifications-unread-count">0</span>
+            </button>
+            <div class="notifications-dropdown glass-card hidden" id="notifications-dropdown-panel">
+                <div class="notifications-dropdown-header">
+                    <h4>🔔 Notificaciones</h4>
+                    <button class="btn-link btn-xs" onclick="notificacionesMod.markAllRead()">Marcar todas leídas</button>
+                </div>
+                <div class="notifications-list" id="notifications-list-container">
+                    <div class="notifications-empty">No tienes notificaciones pendientes</div>
+                </div>
+            </div>
+        </div>
+
         <div class="header-user-info">
             <span class="header-user-name" id="current-user-name">Lic. Ana Martinez</span>
             <span class="header-user-role" id="current-user-role-badge">Abogada JR</span>

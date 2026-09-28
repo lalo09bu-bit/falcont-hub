@@ -122,6 +122,7 @@ app.get('/api/health', (req, res) => {
 app.get('/api/usuarios', (req, res) => {
     const query = `
         SELECT u.*, 
+        (SELECT nombre FROM usuarios WHERE id = u.lider_id) as lider_nombre,
         (u.dias_vacaciones_totales - u.dias_vacaciones_tomados) as dias_vacaciones_restantes,
         (SELECT COUNT(*) FROM metas_empleado WHERE usuario_id = u.id) as total_metas
         FROM usuarios u
@@ -138,7 +139,8 @@ app.get('/api/colaboradores/search', (req, res) => {
     const queryTerm = (req.query.q || '').trim();
     let sql = `
         SELECT u.id, u.nombre, u.email, u.rol, u.puesto, u.departamento, u.avatar, u.foto_perfil, u.telefono,
-               u.fecha_ingreso, u.tipo_contrato, u.numero_empleado, u.estatus_laboral,
+               u.fecha_ingreso, u.tipo_contrato, u.numero_empleado, u.estatus_laboral, u.rfc, u.lider_id,
+               (SELECT nombre FROM usuarios WHERE id = u.lider_id) as lider_nombre,
                u.dias_vacaciones_totales, u.dias_vacaciones_tomados,
                (u.dias_vacaciones_totales - u.dias_vacaciones_tomados) as dias_vacaciones_restantes
         FROM usuarios u
@@ -197,7 +199,13 @@ app.get('/api/colaboradores/search', (req, res) => {
 // 1.2 OBTENER FICHA COMPLETA DE COLABORADOR POR ID (ESTILO BUK)
 app.get('/api/colaboradores/:id', (req, res) => {
     const userId = req.params.id;
-    db.get('SELECT *, (dias_vacaciones_totales - dias_vacaciones_tomados) as dias_vacaciones_restantes FROM usuarios WHERE id = ?', [userId], (err, user) => {
+    db.get(`
+        SELECT u.*, 
+               (SELECT nombre FROM usuarios WHERE id = u.lider_id) as lider_nombre,
+               (dias_vacaciones_totales - dias_vacaciones_tomados) as dias_vacaciones_restantes 
+        FROM usuarios u 
+        WHERE u.id = ?
+    `, [userId], (err, user) => {
         if (err || !user) return res.status(404).json({ error: 'Colaborador no encontrado' });
 
         db.all('SELECT * FROM metas_empleado WHERE usuario_id = ? ORDER BY id ASC', [userId], (err, metas) => {
@@ -212,7 +220,13 @@ app.get('/api/colaboradores/:id', (req, res) => {
                 }, 0);
             }
 
-            db.all('SELECT * FROM incidencias_vacaciones WHERE usuario_id = ? ORDER BY fecha_solicitud DESC', [userId], (err, incidencias) => {
+            db.all(`
+                SELECT i.*, 
+                       (SELECT nombre FROM usuarios WHERE id = i.lider_id) as lider_nombre
+                FROM incidencias_vacaciones i 
+                WHERE i.usuario_id = ? 
+                ORDER BY i.fecha_solicitud DESC
+            `, [userId], (err, incidencias) => {
                 res.json({
                     success: true,
                     data: {
@@ -235,7 +249,7 @@ app.get('/api/colaboradores/:id', (req, res) => {
 // 1.3 ACTUALIZAR DATOS GENERALES DE COLABORADOR (FICHA BUK)
 app.put('/api/colaboradores/:id', (req, res) => {
     const userId = req.params.id;
-    const { nombre, puesto, departamento, telefono, fecha_ingreso, tipo_contrato, numero_empleado, salario_base, estatus_laboral, rfc } = req.body;
+    const { nombre, puesto, departamento, telefono, fecha_ingreso, tipo_contrato, numero_empleado, salario_base, estatus_laboral, rfc, lider_id } = req.body;
 
     db.get('SELECT * FROM usuarios WHERE id = ?', [userId], (err, existing) => {
         if (err || !existing) return res.status(404).json({ error: 'Colaborador no encontrado' });
@@ -250,17 +264,24 @@ app.put('/api/colaboradores/:id', (req, res) => {
         const updatedSalario = salario_base || existing.salario_base;
         const updatedEstatus = estatus_laboral || existing.estatus_laboral;
         const updatedRfc = rfc !== undefined ? (rfc ? rfc.trim().toUpperCase() : null) : existing.rfc;
+        const updatedLider = lider_id !== undefined ? (lider_id ? parseInt(lider_id, 10) : null) : existing.lider_id;
 
         const avatarTxt = updatedNombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
         db.run(`
             UPDATE usuarios 
-            SET nombre = ?, puesto = ?, departamento = ?, avatar = ?, telefono = ?, fecha_ingreso = ?, tipo_contrato = ?, numero_empleado = ?, salario_base = ?, estatus_laboral = ?, rfc = ?
+            SET nombre = ?, puesto = ?, departamento = ?, avatar = ?, telefono = ?, fecha_ingreso = ?, tipo_contrato = ?, numero_empleado = ?, salario_base = ?, estatus_laboral = ?, rfc = ?, lider_id = ?
             WHERE id = ?
-        `, [updatedNombre, updatedPuesto, updatedDept, avatarTxt, updatedTel, updatedFecha, updatedContrato, updatedNumEmp, updatedSalario, updatedEstatus, updatedRfc, userId], function(err) {
+        `, [updatedNombre, updatedPuesto, updatedDept, avatarTxt, updatedTel, updatedFecha, updatedContrato, updatedNumEmp, updatedSalario, updatedEstatus, updatedRfc, updatedLider, userId], function(err) {
             if (err) return res.status(500).json({ error: err.message });
 
-            db.get('SELECT *, (dias_vacaciones_totales - dias_vacaciones_tomados) as dias_vacaciones_restantes FROM usuarios WHERE id = ?', [userId], (err, updatedUser) => {
+            db.get(`
+                SELECT u.*, 
+                       (SELECT nombre FROM usuarios WHERE id = u.lider_id) as lider_nombre,
+                       (dias_vacaciones_totales - dias_vacaciones_tomados) as dias_vacaciones_restantes 
+                FROM usuarios u 
+                WHERE u.id = ?
+            `, [userId], (err, updatedUser) => {
                 io.emit('usuario:perfil_actualizado', updatedUser);
                 res.json({ success: true, data: updatedUser });
             });
@@ -373,13 +394,24 @@ app.post('/api/login', (req, res) => {
 
 // 2. MURO ESTILO FACEBOOK (FEED)
 app.get('/api/feed', (req, res) => {
+    let usuarioId = req.query.usuario_id;
+    if (!usuarioId) {
+        const token = (req.cookies && req.cookies.rdl_session) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+        if (token) {
+            const decoded = verificarJwt(token);
+            if (decoded) usuarioId = decoded.id;
+        }
+    }
+    const userIdNum = usuarioId ? parseInt(usuarioId, 10) : 0;
+
     const query = `
         SELECT f.*, 
-        (SELECT COUNT(*) FROM feed_comentarios WHERE publicacion_id = f.id) as comentarios_count
+        (SELECT COUNT(*) FROM feed_comentarios WHERE publicacion_id = f.id) as comentarios_count,
+        (SELECT COUNT(*) FROM feed_likes WHERE publicacion_id = f.id AND usuario_id = ?) as user_has_liked
         FROM feed_publicaciones f 
         ORDER BY f.fecha_creacion DESC
     `;
-    db.all(query, [], (err, rows) => {
+    db.all(query, [userIdNum], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, data: rows });
     });
@@ -411,17 +443,60 @@ app.post('/api/feed', (req, res) => {
     });
 });
 
+// Reacción en Muro con Control Estricto de 1 solo Like por usuario (Toggle On/Off)
 app.post('/api/feed/:id/like', (req, res) => {
     const postID = req.params.id;
-    db.run('UPDATE feed_publicaciones SET likes_count = likes_count + 1 WHERE id = ?', [postID], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        
-        db.get('SELECT id, likes_count FROM feed_publicaciones WHERE id = ?', [postID], (err, row) => {
-            if (row) {
-                io.emit('feed:like_actualizado', row);
-            }
-            res.json({ success: true, data: row });
-        });
+    let usuarioId = req.body && req.body.usuario_id;
+
+    if (!usuarioId) {
+        const token = (req.cookies && req.cookies.rdl_session) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+        if (token) {
+            const decoded = verificarJwt(token);
+            if (decoded) usuarioId = decoded.id;
+        }
+    }
+
+    if (!usuarioId) {
+        return res.status(401).json({ success: false, error: 'Debes iniciar sesión para reaccionar a esta publicación.' });
+    }
+
+    usuarioId = parseInt(usuarioId, 10);
+
+    // Verificar si el usuario ya dio like previamente a esta publicación
+    db.get('SELECT id FROM feed_likes WHERE publicacion_id = ? AND usuario_id = ? LIMIT 1', [postID, usuarioId], (checkErr, existingLike) => {
+        if (checkErr) return res.status(500).json({ error: checkErr.message });
+
+        if (existingLike) {
+            // Ya dio like: retirar reacción (toggle off, decremento en 1 sin pasar de 0)
+            db.run('DELETE FROM feed_likes WHERE id = ?', [existingLike.id], function (delErr) {
+                if (delErr) return res.status(500).json({ error: delErr.message });
+
+                db.run('UPDATE feed_publicaciones SET likes_count = MAX(0, likes_count - 1) WHERE id = ?', [postID], function (updateErr) {
+                    if (updateErr) return res.status(500).json({ error: updateErr.message });
+
+                    db.get('SELECT id, likes_count FROM feed_publicaciones WHERE id = ?', [postID], (err, row) => {
+                        const updated = row || { id: parseInt(postID, 10), likes_count: 0 };
+                        io.emit('feed:like_actualizado', { id: parseInt(postID, 10), likes_count: updated.likes_count, liked: false, usuario_id: usuarioId });
+                        res.json({ success: true, liked: false, data: updated });
+                    });
+                });
+            });
+        } else {
+            // No ha dado like: registrar nuevo like (toggle on, exactamente 1 like)
+            db.run('INSERT INTO feed_likes (publicacion_id, usuario_id) VALUES (?, ?)', [postID, usuarioId], function (insErr) {
+                if (insErr) return res.status(500).json({ error: insErr.message });
+
+                db.run('UPDATE feed_publicaciones SET likes_count = likes_count + 1 WHERE id = ?', [postID], function (updateErr) {
+                    if (updateErr) return res.status(500).json({ error: updateErr.message });
+
+                    db.get('SELECT id, likes_count FROM feed_publicaciones WHERE id = ?', [postID], (err, row) => {
+                        const updated = row || { id: parseInt(postID, 10), likes_count: 1 };
+                        io.emit('feed:like_actualizado', { id: parseInt(postID, 10), likes_count: updated.likes_count, liked: true, usuario_id: usuarioId });
+                        res.json({ success: true, liked: true, data: updated });
+                    });
+                });
+            });
+        }
     });
 });
 
@@ -578,55 +653,210 @@ app.post('/api/metas/:id/avance', (req, res) => {
     });
 });
 
-// 4. INCIDENCIAS Y VACACIONES
+// 4. INCIDENCIAS, VACACIONES Y PERMISOS DE AUSENCIA
 app.get('/api/incidencias', (req, res) => {
-    db.all('SELECT * FROM incidencias_vacaciones ORDER BY fecha_solicitud DESC', [], (err, rows) => {
+    const query = `
+        SELECT i.*, 
+               (SELECT nombre FROM usuarios WHERE id = i.lider_id) as lider_nombre
+        FROM incidencias_vacaciones i 
+        ORDER BY i.fecha_solicitud DESC
+    `;
+    db.all(query, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, data: rows });
     });
 });
 
 app.post('/api/incidencias', (req, res) => {
-    const { usuario_id, usuario_nombre, usuario_rol, tipo, fecha_inicio, fecha_fin, dias_solicitados, motivo } = req.body;
+    const {
+        usuario_id, usuario_nombre, usuario_rol,
+        tipo, subtipo, fecha_inicio, fecha_fin,
+        hora_inicio, hora_fin, horas_solicitadas,
+        dias_solicitados, motivo, lider_id
+    } = req.body;
 
-    const stmt = db.prepare(`
-        INSERT INTO incidencias_vacaciones (usuario_id, usuario_nombre, usuario_rol, tipo, fecha_inicio, fecha_fin, dias_solicitados, motivo)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    if (!usuario_id || !motivo) {
+        return res.status(400).json({ error: 'Faltan datos obligatorios para la solicitud.' });
+    }
 
-    stmt.run([usuario_id, usuario_nombre, usuario_rol, tipo || 'Vacaciones', fecha_inicio, fecha_fin, dias_solicitados, motivo], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
+    // Buscar información del colaborador para saber su líder directo asignado
+    db.get('SELECT id, nombre, rol, avatar, lider_id, dias_vacaciones_totales, dias_vacaciones_tomados FROM usuarios WHERE id = ?', [usuario_id], (uErr, user) => {
+        if (uErr || !user) {
+            return res.status(404).json({ error: 'Colaborador solicitante no encontrado.' });
+        }
 
-        const nuevaSolicitud = { id: this.lastID, usuario_id, usuario_nombre, usuario_rol, tipo, fecha_inicio, fecha_fin, dias_solicitados, motivo, estatus: 'PENDIENTE', fecha_solicitud: new Date().toISOString() };
+        const saldoRestante = (user.dias_vacaciones_totales || 0) - (user.dias_vacaciones_tomados || 0);
+        const diasNum = parseFloat(dias_solicitados) || 1;
+        const horasNum = parseFloat(horas_solicitadas) || 0;
+        const tipoFinal = tipo === 'Vacaciones' ? 'Vacaciones' : 'Permiso Especial';
+        const subtipoFinal = subtipo || (tipoFinal === 'Vacaciones' ? 'VACACIONES' : 'DIA_CON_GOCE');
 
-        io.emit('incidencia:nueva', nuevaSolicitud);
-        res.json({ success: true, data: nuevaSolicitud });
+        if (tipoFinal === 'Vacaciones' && diasNum > saldoRestante) {
+            return res.status(400).json({
+                error: `Saldo insuficiente de vacaciones. Tienes ${saldoRestante} días disponibles y solicitaste ${diasNum}.`
+            });
+        }
+
+        // Determinar líder destinatario: lider_id enviado > lider_id del usuario > Dirección RH
+        const determineLeader = (callback) => {
+            const explicitLeader = lider_id || user.lider_id;
+            if (explicitLeader) {
+                db.get('SELECT id, nombre, email, rol FROM usuarios WHERE id = ?', [explicitLeader], (err, lead) => {
+                    if (lead) return callback(lead);
+                    db.get("SELECT id, nombre, email, rol FROM usuarios WHERE rol = 'RH' OR rol = 'ADMIN_RH' OR rol = 'ADMIN' ORDER BY id ASC LIMIT 1", [], (err2, rhLead) => {
+                        callback(rhLead || null);
+                    });
+                });
+            } else {
+                db.get("SELECT id, nombre, email, rol FROM usuarios WHERE rol = 'RH' OR rol = 'ADMIN_RH' OR rol = 'ADMIN' ORDER BY id ASC LIMIT 1", [], (err, rhLead) => {
+                    callback(rhLead || null);
+                });
+            }
+        };
+
+        determineLeader((leader) => {
+            const targetLeaderId = leader ? leader.id : null;
+            const targetLeaderName = leader ? leader.nombre : 'Dirección General / RH';
+
+            const insertSql = `
+                INSERT INTO incidencias_vacaciones (
+                    usuario_id, usuario_nombre, usuario_rol, tipo, subtipo,
+                    fecha_inicio, fecha_fin, hora_inicio, hora_fin, horas_solicitadas,
+                    dias_solicitados, motivo, lider_id, estatus
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDIENTE')
+            `;
+
+            db.run(insertSql, [
+                usuario_id,
+                user.nombre || usuario_nombre,
+                user.rol || usuario_rol,
+                tipoFinal,
+                subtipoFinal,
+                fecha_inicio,
+                fecha_fin || fecha_inicio,
+                hora_inicio || null,
+                hora_fin || null,
+                horasNum,
+                diasNum,
+                motivo,
+                targetLeaderId
+            ], function (insErr) {
+                if (insErr) return res.status(500).json({ error: insErr.message });
+
+                const nuevaSolicitudId = this.lastID;
+
+                // Formatear texto descriptivo para la notificación
+                let subtipoLegible = 'Permiso';
+                let cantidadTexto = `${diasNum} día(s)`;
+
+                if (subtipoFinal === 'HORA_CON_GOCE') {
+                    subtipoLegible = 'Permiso por Hora (Con goce)';
+                    cantidadTexto = `${horasNum} hr(s) el ${fecha_inicio} (${hora_inicio} a ${hora_fin})`;
+                } else if (subtipoFinal === 'HORA_SIN_GOCE') {
+                    subtipoLegible = 'Permiso por Hora (Sin goce)';
+                    cantidadTexto = `${horasNum} hr(s) el ${fecha_inicio} (${hora_inicio} a ${hora_fin})`;
+                } else if (subtipoFinal === 'DIA_CON_GOCE') {
+                    subtipoLegible = 'Permiso por Día (Con goce)';
+                    cantidadTexto = `${diasNum} día(s) del ${fecha_inicio} al ${fecha_fin}`;
+                } else if (subtipoFinal === 'DIA_SIN_GOCE') {
+                    subtipoLegible = 'Permiso por Día (Sin goce)';
+                    cantidadTexto = `${diasNum} día(s) del ${fecha_inicio} al ${fecha_fin}`;
+                } else {
+                    subtipoLegible = 'Vacaciones';
+                    cantidadTexto = `${diasNum} día(s) libres del ${fecha_inicio} al ${fecha_fin}`;
+                }
+
+                const notifTitulo = `Solicitud de ${tipoFinal === 'Vacaciones' ? 'Vacaciones' : 'Permiso'}`;
+                const notifMensaje = `${user.nombre} ha solicitado ${subtipoLegible} (${cantidadTexto}). Motivo: "${motivo}".`;
+
+                const nuevaSolicitud = {
+                    id: nuevaSolicitudId,
+                    usuario_id,
+                    usuario_nombre: user.nombre,
+                    usuario_rol: user.rol,
+                    tipo: tipoFinal,
+                    subtipo: subtipoFinal,
+                    fecha_inicio,
+                    fecha_fin: fecha_fin || fecha_inicio,
+                    hora_inicio: hora_inicio || null,
+                    hora_fin: hora_fin || null,
+                    horas_solicitadas: horasNum,
+                    dias_solicitados: diasNum,
+                    motivo,
+                    estatus: 'PENDIENTE',
+                    lider_id: targetLeaderId,
+                    lider_nombre: targetLeaderName,
+                    fecha_solicitud: new Date().toISOString()
+                };
+
+                // Si hay un líder destinatario, registrar notificación persistente y despachar por WebSocket
+                if (targetLeaderId) {
+                    const notifSql = `
+                        INSERT INTO notificaciones (usuario_id, remitente_id, remitente_nombre, remitente_avatar, tipo, titulo, mensaje, referencia_id, leido)
+                        VALUES (?, ?, ?, ?, 'SOLICITUD_AUSENCIA', ?, ?, ?, 0)
+                    `;
+                    db.run(notifSql, [
+                        targetLeaderId,
+                        usuario_id,
+                        user.nombre,
+                        user.avatar || user.nombre.substring(0, 2).toUpperCase(),
+                        notifTitulo,
+                        notifMensaje,
+                        nuevaSolicitudId
+                    ], function () {
+                        const notifObj = {
+                            id: this ? this.lastID : Date.now(),
+                            usuario_id: targetLeaderId,
+                            remitente_id: usuario_id,
+                            remitente_nombre: user.nombre,
+                            remitente_avatar: user.avatar,
+                            tipo: 'SOLICITUD_AUSENCIA',
+                            titulo: notifTitulo,
+                            mensaje: notifMensaje,
+                            referencia_id: nuevaSolicitudId,
+                            leido: 0,
+                            fecha_creacion: new Date().toISOString()
+                        };
+
+                        io.to(`user_${targetLeaderId}`).emit('notificacion:nueva', notifObj);
+                        console.log(`🔔 Notificación enviada a Líder Directo ID ${targetLeaderId} (${targetLeaderName}) por solicitud de ${user.nombre}`);
+                    });
+                }
+
+                io.emit('incidencia:nueva', nuevaSolicitud);
+                return res.json({ success: true, data: nuevaSolicitud });
+            });
+        });
     });
 });
 
 app.put('/api/incidencias/:id/aprobar', (req, res) => {
-    const { estatus, aprobado_por, rol_aprobador } = req.body;
+    const { estatus, aprobado_por, rol_aprobador, aprobador_id } = req.body;
     const incID = req.params.id;
-
-    if (rol_aprobador !== 'ADMIN' && rol_aprobador !== 'ABOGADA_SR' && rol_aprobador !== 'RH' && rol_aprobador !== 'ADMIN_RH') {
-        return res.status(403).json({ error: 'No tienes permisos para aprobar solicitudes.' });
-    }
 
     db.get('SELECT * FROM incidencias_vacaciones WHERE id = ?', [incID], (err, inc) => {
         if (err || !inc) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
+        const canApprove = (aprobador_id && inc.lider_id && parseInt(aprobador_id, 10) === parseInt(inc.lider_id, 10)) ||
+                           ['ADMIN', 'ABOGADA_SR', 'RH', 'ADMIN_RH'].includes(rol_aprobador);
+
+        if (!canApprove) {
+            return res.status(403).json({ error: 'No tienes permisos para autorizar esta solicitud. Solo el líder directo asignado o Recursos Humanos pueden hacerlo.' });
+        }
+
         db.run(
             'UPDATE incidencias_vacaciones SET estatus = ?, aprobado_por = ? WHERE id = ?',
-            [estatus, aprobado_por || 'Supervisora RDL', incID],
-            function (err) {
-                if (err) return res.status(500).json({ error: err.message });
+            [estatus, aprobado_por || 'Líder / RH RDL', incID],
+            function (updateErr) {
+                if (updateErr) return res.status(500).json({ error: updateErr.message });
 
+                // Si fue vacaciones y se aprobó, descontar del saldo
                 if (estatus === 'APROBADO' && inc.tipo === 'Vacaciones') {
                     db.run(
                         'UPDATE usuarios SET dias_vacaciones_tomados = dias_vacaciones_tomados + ? WHERE id = ?',
                         [inc.dias_solicitados, inc.usuario_id],
                         () => {
-                            db.get('SELECT * FROM usuarios WHERE id = ?', [inc.usuario_id], (err, userUpdated) => {
+                            db.get('SELECT * FROM usuarios WHERE id = ?', [inc.usuario_id], (uErr, userUpdated) => {
                                 if (userUpdated) {
                                     io.emit('usuario:vacaciones_actualizadas', userUpdated);
                                 }
@@ -635,11 +865,97 @@ app.put('/api/incidencias/:id/aprobar', (req, res) => {
                     );
                 }
 
+                // Notificar al colaborador solicitante de la resolución
+                const notifTitulo = `Solicitud ${estatus === 'APROBADO' ? 'Aprobada ✅' : 'Rechazada ❌'}`;
+                const notifMensaje = `Tu solicitud de ${inc.tipo} (${inc.subtipo || ''}) fue ${estatus === 'APROBADO' ? 'APROBADA' : 'RECHAZADA'} por ${aprobado_por || 'tu líder'}.`;
+
+                const notifSql = `
+                    INSERT INTO notificaciones (usuario_id, remitente_id, remitente_nombre, remitente_avatar, tipo, titulo, mensaje, referencia_id, leido)
+                    VALUES (?, ?, ?, 'RDL', 'RESOLUCION_AUSENCIA', ?, ?, ?, 0)
+                `;
+                db.run(notifSql, [
+                    inc.usuario_id,
+                    aprobador_id || 0,
+                    aprobado_por || 'Líder Directo',
+                    notifTitulo,
+                    notifMensaje,
+                    incID
+                ], function() {
+                    const resolucionNotif = {
+                        id: this ? this.lastID : Date.now(),
+                        usuario_id: inc.usuario_id,
+                        remitente_nombre: aprobado_por,
+                        tipo: 'RESOLUCION_AUSENCIA',
+                        titulo: notifTitulo,
+                        mensaje: notifMensaje,
+                        referencia_id: incID,
+                        leido: 0,
+                        fecha_creacion: new Date().toISOString()
+                    };
+                    io.to(`user_${inc.usuario_id}`).emit('notificacion:nueva', resolucionNotif);
+                });
+
                 const resObj = { ...inc, estatus, aprobado_por };
                 io.emit('incidencia:estatus_cambiado', resObj);
                 res.json({ success: true, data: resObj });
             }
         );
+    });
+});
+
+// 5. MÓDULO DE NOTIFICACIONES
+app.get('/api/notificaciones', (req, res) => {
+    let usuarioId = req.query.usuario_id;
+    if (!usuarioId) {
+        const token = (req.cookies && req.cookies.rdl_session) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+        if (token) {
+            const decoded = verificarJwt(token);
+            if (decoded) usuarioId = decoded.id;
+        }
+    }
+
+    if (!usuarioId) {
+        return res.status(401).json({ success: false, error: 'Debes iniciar sesión para consultar tus notificaciones.' });
+    }
+
+    const query = `
+        SELECT * FROM notificaciones 
+        WHERE usuario_id = ? 
+        ORDER BY fecha_creacion DESC 
+        LIMIT 40
+    `;
+    db.all(query, [usuarioId], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const unreadCount = (rows || []).filter(n => n.leido === 0).length;
+        res.json({ success: true, data: rows || [], unreadCount });
+    });
+});
+
+app.put('/api/notificaciones/:id/leer', (req, res) => {
+    const notifId = req.params.id;
+    db.run('UPDATE notificaciones SET leido = 1 WHERE id = ?', [notifId], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
+});
+
+app.put('/api/notificaciones/marcar-todas', (req, res) => {
+    let usuarioId = req.body && req.body.usuario_id;
+    if (!usuarioId) {
+        const token = (req.cookies && req.cookies.rdl_session) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+        if (token) {
+            const decoded = verificarJwt(token);
+            if (decoded) usuarioId = decoded.id;
+        }
+    }
+
+    if (!usuarioId) {
+        return res.status(401).json({ success: false, error: 'No autenticado.' });
+    }
+
+    db.run('UPDATE notificaciones SET leido = 1 WHERE usuario_id = ?', [usuarioId], function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, changes: this.changes });
     });
 });
 
