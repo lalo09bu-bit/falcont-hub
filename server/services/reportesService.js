@@ -92,7 +92,8 @@ export async function buildReportDataset(db, { campos = [], fecha_desde = null, 
         .map(fid => CATALOGO_CAMPOS.find(c => c.id === fid))
         .filter(Boolean);
 
-    const hasIncidencias = columnDefs.some(c => c.categoria === 'AUSENCIAS');
+    const hasIncidenciaRecords = columnDefs.some(c => c.id.startsWith('inc_'));
+    const hasSaldosVacaciones = columnDefs.some(c => c.id.startsWith('vac_'));
     const hasMetas = columnDefs.some(c => c.categoria === 'METAS');
 
     // 1. Obtener todos los colaboradores con su líder directo
@@ -106,9 +107,9 @@ export async function buildReportDataset(db, { campos = [], fecha_desde = null, 
         db.all(sql, [], (err, rows) => err ? reject(err) : resolve(rows || []));
     });
 
-    // 2. Obtener Incidencias si se requieren
+    // 2. Obtener Incidencias si se requieren registros de incidencias o saldos
     let incidencias = [];
-    if (hasIncidencias) {
+    if (hasIncidenciaRecords || hasSaldosVacaciones) {
         incidencias = await new Promise((resolve, reject) => {
             let sql = `
                 SELECT i.*, l.nombre as lider_nombre_inc
@@ -118,14 +119,14 @@ export async function buildReportDataset(db, { campos = [], fecha_desde = null, 
             `;
             const params = [];
             if (fecha_desde) {
-                sql += ` AND i.fecha_inicio >= ?`;
-                params.push(fecha_desde);
+                sql += ` AND (i.fecha_inicio >= ? OR (i.fecha_solicitud IS NOT NULL AND SUBSTR(i.fecha_solicitud, 1, 10) >= ?))`;
+                params.push(fecha_desde, fecha_desde);
             }
             if (fecha_hasta) {
-                sql += ` AND i.fecha_inicio <= ?`;
-                params.push(fecha_hasta);
+                sql += ` AND (i.fecha_inicio <= ? OR (i.fecha_solicitud IS NOT NULL AND SUBSTR(i.fecha_solicitud, 1, 10) <= ?))`;
+                params.push(fecha_hasta, fecha_hasta);
             }
-            sql += ` ORDER BY i.fecha_inicio DESC`;
+            sql += ` ORDER BY i.id DESC`;
             db.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows || []));
         });
     }
@@ -185,15 +186,25 @@ export async function buildReportDataset(db, { campos = [], fecha_desde = null, 
                 case 'inc_fecha_inicio': row[col.id] = inc ? inc.fecha_inicio : '-'; break;
                 case 'inc_fecha_fin': row[col.id] = inc ? inc.fecha_fin : '-'; break;
                 case 'inc_horario': 
-                    row[col.id] = inc && inc.hora_inicio ? `${inc.hora_inicio} - ${inc.hora_fin || ''}` : (inc ? 'Día Completo' : '-'); 
+                    row[col.id] = (inc && inc.hora_inicio && inc.hora_fin) 
+                        ? `${inc.hora_inicio} a ${inc.hora_fin}` 
+                        : (inc ? (inc.subtipo && inc.subtipo.startsWith('HORA') ? (inc.hora_inicio || 'Horario por horas') : 'Jornada Completa') : '-'); 
                     break;
-                case 'inc_horas': row[col.id] = inc && inc.horas_solicitadas ? parseFloat(inc.horas_solicitadas) : 0; break;
-                case 'inc_dias': row[col.id] = inc && inc.dias_solicitados ? parseInt(inc.dias_solicitados, 10) : 0; break;
+                case 'inc_horas': 
+                    row[col.id] = inc && inc.horas_solicitadas !== null && inc.horas_solicitadas !== undefined && inc.horas_solicitadas > 0
+                        ? parseFloat(inc.horas_solicitadas) 
+                        : (inc && inc.subtipo && inc.subtipo.startsWith('HORA') ? 0 : '-'); 
+                    break;
+                case 'inc_dias': 
+                    row[col.id] = inc && inc.dias_solicitados !== null && inc.dias_solicitados !== undefined 
+                        ? parseFloat(inc.dias_solicitados) 
+                        : (inc ? 1 : '-'); 
+                    break;
                 case 'inc_motivo': row[col.id] = inc ? (inc.motivo || '') : '-'; break;
-                case 'inc_estatus': row[col.id] = inc ? inc.estatus : '-'; break;
+                case 'inc_estatus': row[col.id] = inc ? (inc.estatus || 'PENDIENTE') : '-'; break;
                 case 'inc_lider': row[col.id] = inc ? (inc.aprobado_por || inc.lider_nombre_inc || 'Dirección RH') : '-'; break;
                 case 'inc_fecha_solicitud': 
-                    row[col.id] = inc && inc.fecha_solicitud ? inc.fecha_solicitud.split('T')[0] : '-'; 
+                    row[col.id] = inc && inc.fecha_solicitud ? inc.fecha_solicitud.substring(0, 10) : '-'; 
                     break;
 
                 // Metas & KPIs
@@ -206,7 +217,7 @@ export async function buildReportDataset(db, { campos = [], fecha_desde = null, 
                 case 'meta_fecha_limite': row[col.id] = meta ? meta.fecha_limite : '-'; break;
                 case 'meta_estatus': row[col.id] = meta ? meta.estatus : '-'; break;
                 case 'meta_fecha_creacion': 
-                    row[col.id] = meta && meta.fecha_creacion ? meta.fecha_creacion.split('T')[0] : '-'; 
+                    row[col.id] = meta && meta.fecha_creacion ? meta.fecha_creacion.substring(0, 10) : '-'; 
                     break;
 
                 default: row[col.id] = '';
@@ -218,35 +229,44 @@ export async function buildReportDataset(db, { campos = [], fecha_desde = null, 
 
     let dataset = [];
 
-    // CASO A: Reporte enfocado en incidencias / ausencias
-    if (hasIncidencias && !hasMetas) {
+    // CASO A: Reporte enfocado en registros individuales de incidencias y ausencias
+    if (hasIncidenciaRecords && !hasMetas) {
         if (incidencias.length === 0) {
-            // Si no hay incidencias en ese rango, mostrar colaboradores con guiones
-            dataset = usuarios.map(u => buildRow(u, null, null));
+            dataset = [];
         } else {
             dataset = incidencias.map(inc => {
-                const u = usuarios.find(usr => usr.id === inc.usuario_id) || { nombre: inc.usuario_nombre, rol: inc.usuario_rol };
+                const u = usuarios.find(usr => String(usr.id) === String(inc.usuario_id)) || {
+                    id: inc.usuario_id,
+                    nombre: inc.usuario_nombre || 'Colaborador',
+                    rol: inc.usuario_rol || 'ABOGADA_JR',
+                    rfc: 'No registrado',
+                    puesto: 'Abogada Junior',
+                    departamento: 'Legal'
+                };
                 return buildRow(u, inc, null);
             });
         }
     } 
     // CASO B: Reporte enfocado en metas & KPIs
-    else if (hasMetas && !hasIncidencias) {
+    else if (hasMetas && !hasIncidenciaRecords) {
         if (metas.length === 0) {
-            dataset = usuarios.map(u => buildRow(u, null, null));
+            dataset = [];
         } else {
             dataset = metas.map(meta => {
-                const u = usuarios.find(usr => usr.id === meta.usuario_id) || { nombre: 'Colaborador', rol: 'ABOGADA_JR' };
+                const u = usuarios.find(usr => String(usr.id) === String(meta.usuario_id)) || {
+                    id: meta.usuario_id,
+                    nombre: 'Colaborador',
+                    rol: 'ABOGADA_JR'
+                };
                 return buildRow(u, null, meta);
             });
         }
     }
-    // CASO C: Consolidado (Tanto incidencias como metas o solo datos de colaboradores)
-    else if (hasMetas && hasIncidencias) {
-        // Generar filas vinculando los registros de cada colaborador
+    // CASO C: Consolidado (Tanto incidencias como metas)
+    else if (hasMetas && hasIncidenciaRecords) {
         usuarios.forEach(u => {
-            const userIncs = incidencias.filter(i => i.usuario_id === u.id);
-            const userMetas = metas.filter(m => m.usuario_id === u.id);
+            const userIncs = incidencias.filter(i => String(i.usuario_id) === String(u.id));
+            const userMetas = metas.filter(m => String(m.usuario_id) === String(u.id));
             const maxLen = Math.max(userIncs.length, userMetas.length, 1);
 
             for (let i = 0; i < maxLen; i++) {
@@ -254,7 +274,7 @@ export async function buildReportDataset(db, { campos = [], fecha_desde = null, 
             }
         });
     }
-    // CASO D: Solo colaboradores y saldos de vacaciones
+    // CASO D: Colaboradores, saldo de vacaciones y datos de personal (sin duplicar colaboradores)
     else {
         let filteredUsers = usuarios;
         if (fecha_desde) {

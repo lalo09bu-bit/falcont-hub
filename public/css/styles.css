@@ -2151,4 +2151,44 @@ body.rdl-theme {
     background: #f8fafc;
 }
 
+/* Pestañas Rápidas de Vistas de Reportes */
+.reportes-category-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: #f8fafc;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-light);
+}
+
+.reporte-quick-cat-btn {
+    background: #ffffff;
+    border: 1px solid var(--border-light);
+    color: var(--text-main);
+    padding: 5px 11px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.reporte-quick-cat-btn:hover {
+    border-color: var(--rdl-teal);
+    color: var(--rdl-teal);
+    background: rgba(19, 106, 96, 0.05);
+}
+
+.reporte-quick-cat-btn.active {
+    background: var(--rdl-teal) !important;
+    color: #ffffff !important;
+    border-color: var(--rdl-teal) !important;
+    box-shadow: 0 2px 4px rgba(19, 106, 96, 0.25);
+}
+
+
 

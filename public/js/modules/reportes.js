@@ -119,7 +119,7 @@ class ReportesModule {
         if (optGroupCust.children.length > 0) select.appendChild(optGroupCust);
     }
 
-    openModal() {
+    openModal(preferredCategoryOrTemplateId = null) {
         const user = window.currentUser;
         if (!user) return;
         const rolesRH = ['RH', 'ADMIN', 'ADMIN_RH', 'ABOGADA_SR'];
@@ -132,6 +132,17 @@ class ReportesModule {
         if (!modal) return;
 
         modal.classList.add('active');
+
+        // Si se especificó una categoría o plantilla, seleccionarla directamente
+        if (preferredCategoryOrTemplateId) {
+            if (typeof preferredCategoryOrTemplateId === 'string' && isNaN(Number(preferredCategoryOrTemplateId))) {
+                this.selectTemplateByCategory(preferredCategoryOrTemplateId);
+                return;
+            } else {
+                this.selectTemplate(preferredCategoryOrTemplateId);
+                return;
+            }
+        }
 
         // Si no hay campos seleccionados aún, cargar la primera plantilla del sistema
         if (this.selectedFields.length === 0 && this.plantillas.length > 0) {
@@ -146,6 +157,26 @@ class ReportesModule {
     closeModal() {
         const modal = document.getElementById('modal-reportes-exportador');
         if (modal) modal.classList.remove('active');
+    }
+
+    selectTemplateByCategory(categoria) {
+        const catUpper = String(categoria).toUpperCase();
+        let target = null;
+        if (catUpper.includes('INCIDENCIA') || catUpper.includes('AUSENCIA') || catUpper.includes('PERMISO')) {
+            target = this.plantillas.find(p => p.categoria === 'INCIDENCIAS' || (p.nombre && (p.nombre.includes('Auditoría') || p.nombre.includes('Incidencias') || p.nombre.includes('Permisos'))));
+        } else if (catUpper.includes('META') || catUpper.includes('RENDIMIENTO')) {
+            target = this.plantillas.find(p => p.categoria === 'METAS');
+        } else if (catUpper.includes('CONSOLIDADO') || catUpper.includes('MAESTRO')) {
+            target = this.plantillas.find(p => p.categoria === 'CONSOLIDADO');
+        } else if (catUpper.includes('COLABORADOR') || catUpper.includes('PERSONAL')) {
+            target = this.plantillas.find(p => p.categoria === 'COLABORADORES');
+        }
+
+        if (target) {
+            this.selectTemplate(target.id);
+        } else if (this.plantillas.length > 0) {
+            this.selectTemplate(this.plantillas[0].id);
+        }
     }
 
     selectTemplate(templateId) {
@@ -165,6 +196,17 @@ class ReportesModule {
             if (btnDelete) {
                 btnDelete.style.display = template.es_sistema ? 'none' : 'inline-flex';
             }
+
+            // Sincronizar botones de categorías rápidas
+            const quickBtns = document.querySelectorAll('.reporte-quick-cat-btn');
+            quickBtns.forEach(b => {
+                const bCat = b.getAttribute('data-cat');
+                if (template.categoria === bCat || (bCat === 'INCIDENCIAS' && template.nombre && template.nombre.includes('Auditoría'))) {
+                    b.classList.add('active');
+                } else {
+                    b.classList.remove('active');
+                }
+            });
         }
 
         this.renderAvailablePool();
@@ -494,11 +536,31 @@ class ReportesModule {
         let ths = columns.map(col => `<th>${col.label}</th>`).join('');
         let trs = rows.map(row => {
             const tds = columns.map(col => {
-                let val = row[col.key];
+                const fieldKey = col.id || col.key;
+                let val = row[fieldKey];
                 if (val === null || val === undefined || val === '') val = '-';
                 if (col.type === 'currency' && typeof val === 'number') {
                     val = `$${val.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
                 }
+
+                // Renderizar estatus corporativo con badges visuales
+                if (fieldKey === 'inc_estatus' || fieldKey === 'meta_estatus' || fieldKey === 'estatus_laboral') {
+                    const upper = String(val).toUpperCase();
+                    let badgeClass = 'badge-jr';
+                    let icon = '⚖️';
+                    if (upper.includes('APROB') || upper === 'ACTIVO' || upper.includes('COMPLET') || upper.includes('CONCLU')) {
+                        badgeClass = 'badge-jr';
+                        icon = '✅';
+                    } else if (upper.includes('PEND') || upper.includes('PROGRESO') || upper.includes('REVISI')) {
+                        badgeClass = 'badge-sr';
+                        icon = '⏳';
+                    } else if (upper.includes('RECHAZ') || upper === 'BAJA' || upper === 'INACTIVO' || upper.includes('RIESGO') || upper.includes('CANCEL')) {
+                        badgeClass = 'badge-admin';
+                        icon = '❌';
+                    }
+                    return `<td><span class="role-badge ${badgeClass}" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.76rem;">${icon} ${val}</span></td>`;
+                }
+
                 return `<td>${val}</td>`;
             }).join('');
             return `<tr>${tds}</tr>`;

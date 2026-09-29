@@ -396,7 +396,12 @@ import Header from '../components/Header.astro';
 
                 <div class="divider" style="margin: 22px 0 16px 0;"></div>
 
-                <h3>Historial de Solicitudes y Resoluciones</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h3 style="margin: 0;">Historial de Solicitudes y Resoluciones</h3>
+                    <button type="button" class="btn btn-sm btn-ghost" id="btn-vacaciones-export-excel" onclick="vacacionesMod.exportarExcelIncidencias()" title="Descargar reporte completo en Excel de incidencias" style="color: var(--rdl-teal); border: 1.5px solid var(--rdl-teal); font-weight: 700; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 6px;">
+                        <span>📊</span> Exportar a Excel
+                    </button>
+                </div>
                 <div class="table-container" style="max-height: 250px; overflow-y: auto; margin-top: 10px;">
                     <table class="data-table">
                         <thead>
@@ -752,7 +757,24 @@ import Header from '../components/Header.astro';
                 <button class="btn-close" onclick="reportesMod.closeModal()">✕</button>
             </div>
 
-            <div class="modal-body" style="overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 16px;">
+            <div class="modal-body" style="overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px;">
+                <!-- Accesos Rápidos de Estructuras por Categoría -->
+                <div class="reportes-category-pills" style="display: flex; gap: 8px; flex-wrap: wrap; background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-light);">
+                    <span style="font-size: 0.8rem; font-weight: 700; color: var(--rdl-navy); align-self: center; margin-right: 4px;">📂 Vistas de Reporte:</span>
+                    <button type="button" class="btn btn-xs reporte-quick-cat-btn" data-cat="INCIDENCIAS" onclick="reportesMod.selectTemplateByCategory('INCIDENCIAS')" style="font-weight: 700; border: 1px solid var(--rdl-teal);">
+                        🏖️ Control de Incidencias & Ausencias
+                    </button>
+                    <button type="button" class="btn btn-xs reporte-quick-cat-btn" data-cat="COLABORADORES" onclick="reportesMod.selectTemplateByCategory('COLABORADORES')" style="font-weight: 600;">
+                        👤 Ficha de Personal (Buk)
+                    </button>
+                    <button type="button" class="btn btn-xs reporte-quick-cat-btn" data-cat="METAS" onclick="reportesMod.selectTemplateByCategory('METAS')" style="font-weight: 600;">
+                        🎯 Metas & Rendimiento (100%)
+                    </button>
+                    <button type="button" class="btn btn-xs reporte-quick-cat-btn" data-cat="CONSOLIDADO" onclick="reportesMod.selectTemplateByCategory('CONSOLIDADO')" style="font-weight: 600;">
+                        🌐 Consolidado Maestro 360°
+                    </button>
+                </div>
+
                 <!-- Barra Superior: Selección de Plantilla y Filtro de Fechas -->
                 <div class="reportes-top-toolbar" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: var(--bg-alt); padding: 14px 16px; border-radius: 10px; border: 1px solid var(--border-light);">
                     <!-- 1. Plantillas y Estructuras Guardadas -->

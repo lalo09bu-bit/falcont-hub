@@ -41,12 +41,27 @@ export function generateExcelXml(sheetName, columns, rows) {
         const defaultStyle = isZebra ? 'ZebraText' : 'NormalText';
 
         const cells = columns.map(col => {
-            const rawVal = row[col.key];
+            const fieldKey = col.id || col.key;
+            const rawVal = row[fieldKey];
             if (rawVal === null || rawVal === undefined || rawVal === '') {
                 return `<Cell ss:StyleID="${defaultStyle}"><Data ss:Type="String">-</Data></Cell>`;
             }
 
             const valStr = String(rawVal).trim();
+
+            // Status especial para Incidencias y Metas
+            if (fieldKey === 'inc_estatus' || fieldKey === 'meta_estatus' || fieldKey === 'estatus_laboral') {
+                const upper = valStr.toUpperCase();
+                let statusStyle = defaultStyle;
+                if (upper.includes('APROB') || upper === 'ACTIVO' || upper.includes('COMPLET') || upper.includes('CONCLU')) {
+                    statusStyle = 'StatusAprobado';
+                } else if (upper.includes('PEND') || upper.includes('PROGRESO') || upper.includes('REVISI')) {
+                    statusStyle = 'StatusPendiente';
+                } else if (upper.includes('RECHAZ') || upper === 'BAJA' || upper === 'INACTIVO' || upper.includes('RIESGO') || upper.includes('CANCEL')) {
+                    statusStyle = 'StatusRechazado';
+                }
+                return `<Cell ss:StyleID="${statusStyle}"><Data ss:Type="String">${escapeXml(valStr)}</Data></Cell>`;
+            }
 
             // Tipos numéricos y monetarios
             if (col.type === 'number' || col.type === 'currency' || col.type === 'percent') {
@@ -169,6 +184,25 @@ export function generateExcelXml(sheetName, columns, rows) {
    <Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/>
    <Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/></Borders>
   </Style>
+  <!-- Estatus Corporativos para Incidencias y Metas -->
+  <Style ss:ID="StatusAprobado">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Calibri" ss:Size="10" ss:Color="#065F46" ss:Bold="1"/>
+   <Interior ss:Color="#ECFDF5" ss:Pattern="Solid"/>
+   <Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#A7F3D0"/></Borders>
+  </Style>
+  <Style ss:ID="StatusPendiente">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Calibri" ss:Size="10" ss:Color="#92400E" ss:Bold="1"/>
+   <Interior ss:Color="#FFFBEB" ss:Pattern="Solid"/>
+   <Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FDE68A"/></Borders>
+  </Style>
+  <Style ss:ID="StatusRechazado">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Calibri" ss:Size="10" ss:Color="#991B1B" ss:Bold="1"/>
+   <Interior ss:Color="#FEF2F2" ss:Pattern="Solid"/>
+   <Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#FECACA"/></Borders>
+  </Style>
  </Styles>
  <Worksheet ss:Name="${sName}">
   <Table ss:DefaultRowHeight="20">
@@ -197,7 +231,8 @@ export function generateCsv(columns, rows) {
     const headerLine = columns.map(c => `"${String(c.label).replace(/"/g, '""')}"`).join(';');
     const dataLines = rows.map(r => {
         return columns.map(c => {
-            const v = r[c.key];
+            const fieldKey = c.id || c.key;
+            const v = r[fieldKey];
             if (v === null || v === undefined) return '""';
             return `"${String(v).replace(/"/g, '""')}"`;
         }).join(';');

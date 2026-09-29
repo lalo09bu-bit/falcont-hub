@@ -583,10 +583,10 @@ function seedReportesPlantillas() {
                     es_sistema: 1
                 },
                 {
-                    nombre: 'Plantilla Auditoría de Vacaciones & Permisos',
-                    descripcion: 'Historial de ausencias justificadas, saldos de vacaciones y permisos por hora y día.',
+                    nombre: 'Plantilla Auditoría de Vacaciones & Permisos (Control de Incidencias)',
+                    descripcion: 'Historial completo de ausencias, permisos por hora y día, fechas, horarios, motivos, líderes y estatus de aprobación.',
                     categoria: 'INCIDENCIAS',
-                    campos: JSON.stringify(['numero_empleado', 'nombre', 'departamento', 'vac_totales', 'vac_tomados', 'vac_disponibles', 'inc_tipo', 'inc_subtipo', 'inc_fecha_inicio', 'inc_fecha_fin', 'inc_horario', 'inc_horas', 'inc_dias', 'inc_motivo', 'inc_estatus', 'inc_lider', 'inc_fecha_solicitud']),
+                    campos: JSON.stringify(['numero_empleado', 'nombre', 'rfc', 'puesto', 'departamento', 'inc_tipo', 'inc_subtipo', 'inc_fecha_inicio', 'inc_fecha_fin', 'inc_horario', 'inc_horas', 'inc_dias', 'inc_motivo', 'inc_estatus', 'inc_lider', 'inc_fecha_solicitud', 'vac_disponibles']),
                     es_sistema: 1
                 },
                 {
@@ -617,6 +617,15 @@ function seedReportesPlantillas() {
             stmt.finalize(() => {
                 console.log('✅ Plantillas de reportes para RH inicializadas con éxito.');
             });
+        } else if (!err && row && row.count > 0) {
+            // Asegurar que la plantilla de incidencias del sistema cuente con los campos completos actualizados
+            const incidenciasFields = JSON.stringify(['numero_empleado', 'nombre', 'rfc', 'puesto', 'departamento', 'inc_tipo', 'inc_subtipo', 'inc_fecha_inicio', 'inc_fecha_fin', 'inc_horario', 'inc_horas', 'inc_dias', 'inc_motivo', 'inc_estatus', 'inc_lider', 'inc_fecha_solicitud', 'vac_disponibles']);
+            db.run(`
+                UPDATE reportes_plantillas 
+                SET nombre = 'Plantilla Auditoría de Vacaciones & Permisos (Control de Incidencias)',
+                    campos_seleccionados = ?
+                WHERE es_sistema = 1 AND categoria = 'INCIDENCIAS'
+            `, [incidenciasFields], () => {});
         }
     });
 }

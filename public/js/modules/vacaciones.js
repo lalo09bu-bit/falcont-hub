@@ -508,6 +508,13 @@ class VacacionesModule {
         this.incidencias.unshift(inc);
         this.renderTable();
     }
+
+    exportarExcelIncidencias() {
+        this.closeModal();
+        if (window.reportesMod) {
+            window.reportesMod.openModal('INCIDENCIAS');
+        }
+    }
 }
 
 window.vacacionesMod = new VacacionesModule();
