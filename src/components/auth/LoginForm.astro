@@ -207,6 +207,15 @@
             </div>
             
             <div class="dev-buttons-stack">
+                <a href="/api/auth/dev-login?email=demo@rdl.com.mx" class="btn-dev-login role-demo" title="Acceso total 360° para Auditoría y Evaluación de Clientes">
+                    <span class="role-icon">⭐</span>
+                    <div class="role-meta">
+                        <span class="role-name">Lic. Carlos Mendoza (Cliente Demo / Auditoría)</span>
+                        <span class="role-user">RFC: <strong>DEMO880101RDL</strong> • demo@rdl.com.mx</span>
+                    </div>
+                    <span class="role-badge">Demo 360°</span>
+                </a>
+
                 <a href="/api/auth/dev-login?role=RH&rfc=COSR880101RDL" class="btn-dev-login role-rh" title="Acceso total a Dirección de Talento">
                     <span class="role-icon">👑</span>
                     <div class="role-meta">
@@ -575,6 +584,22 @@
         border-radius: 4px;
         background: #e2e8f0;
         color: #334155;
+    }
+
+    .btn-dev-login.role-demo {
+        background: #f0fdfa;
+        border: 1.5px solid #0f766e;
+    }
+
+    .btn-dev-login.role-demo:hover {
+        background: #ccfbf1;
+        border-color: #14b8a6;
+    }
+
+    .btn-dev-login.role-demo .role-badge {
+        background: #0f766e;
+        color: #ffffff;
+        font-weight: 700;
     }
 
     .btn-dev-login.role-rh .role-badge {

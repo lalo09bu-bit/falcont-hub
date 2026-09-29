@@ -187,10 +187,12 @@ function initDatabase() {
             }
             runMigrations();
             seedRdlData();
+            seedDummyClientUser();
         });
     } else {
         runMigrations();
         seedRdlData();
+        seedDummyClientUser();
     }
 }
 
@@ -266,7 +268,9 @@ function runMigrations() {
                     { email: 'mariana.torres@rdl.com.mx', rfc: 'TOMA960412RDL' },
                     { email: 'patricia.silva@adeltaconsultores.com', rfc: 'SIP901105AD1' },
                     { email: 'fernando.ortiz@rdlabogados.com.mx', rfc: 'OIF890723RD2' },
-                    { email: 'analista.rh04@adeltaconsultores.com', rfc: 'COSR880101AD3' }
+                    { email: 'analista.rh04@adeltaconsultores.com', rfc: 'COSR880101AD3' },
+                    { email: 'denis@rdl.com.mx', rfc: 'RAMD940612RD1' },
+                    { email: 'demo@rdl.com.mx', rfc: 'DEMO880101RDL' }
                 ];
                 defaultRfcs.forEach(item => {
                     db.run("UPDATE usuarios SET rfc = ? WHERE LOWER(email) = LOWER(?) AND (rfc IS NULL OR rfc = '')", [item.rfc, item.email]);
@@ -612,6 +616,241 @@ function seedReportesPlantillas() {
 
             stmt.finalize(() => {
                 console.log('✅ Plantillas de reportes para RH inicializadas con éxito.');
+            });
+        }
+    });
+}
+
+// 9. Garantizar usuario Dummy para Evaluación de Clientes (Acceso Total 360°)
+export function seedDummyClientUser() {
+    const demoEmail = 'demo@rdl.com.mx';
+    const demoRfc = 'DEMO880101RDL';
+
+    db.get("SELECT id, email, rfc FROM usuarios WHERE LOWER(email) = LOWER(?) OR UPPER(rfc) = UPPER(?) LIMIT 1", [demoEmail, demoRfc], (err, user) => {
+        if (!err && !user) {
+            console.log("🌱 Creando usuario Dummy para Evaluación de Clientes...");
+            db.run(`
+                INSERT INTO usuarios (
+                    email, nombre, rol, puesto, departamento, avatar, telefono,
+                    fecha_ingreso, tipo_contrato, numero_empleado, rfc,
+                    dias_vacaciones_totales, dias_vacaciones_tomados, estatus_laboral, lider_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVO', 1)
+            `, [
+                demoEmail,
+                'Lic. Carlos Mendoza (Cliente Demo)',
+                'ADMIN',
+                'Director de Operaciones & Auditoría (Demo)',
+                'Dirección General & Auditoría',
+                'CM',
+                '+52 (55) 5482-9099',
+                '2024-01-15',
+                'Tiempo Indeterminado',
+                'RDL-DEMO',
+                demoRfc,
+                20,
+                4
+            ], function(insertErr) {
+                if (!insertErr) {
+                    const demoUserId = this.lastID;
+                    console.log(`✅ Usuario Dummy creado con ID: ${demoUserId}`);
+                    seedDemoGoalsAndIncidencias(demoUserId);
+                } else {
+                    console.error("❌ Error al crear usuario dummy:", insertErr.message);
+                }
+            });
+        } else if (user) {
+            const demoUserId = user.id;
+            db.run(`
+                UPDATE usuarios 
+                SET rol = 'ADMIN', rfc = ?, estatus_laboral = 'ACTIVO',
+                    nombre = 'Lic. Carlos Mendoza (Cliente Demo)',
+                    puesto = 'Director de Operaciones & Auditoría (Demo)',
+                    departamento = 'Dirección General & Auditoría',
+                    dias_vacaciones_totales = 20,
+                    dias_vacaciones_tomados = 4
+                WHERE id = ?
+            `, [demoRfc, demoUserId], () => {
+                seedDemoGoalsAndIncidencias(demoUserId);
+            });
+        }
+    });
+}
+
+function seedDemoGoalsAndIncidencias(demoUserId) {
+    if (!demoUserId) return;
+
+    // 1. Metas Ponderadas (100%) para el usuario Demo
+    db.get("SELECT COUNT(*) as count, SUM(peso) as total_peso FROM metas_empleado WHERE usuario_id = ?", [demoUserId], (err, row) => {
+        const count = row ? row.count : 0;
+        const totalPeso = row && row.total_peso ? Math.round(row.total_peso) : 0;
+
+        if (!err && (count < 3 || totalPeso !== 100)) {
+            console.log(`🎯 Asignando metas ponderadas (100%) para usuario Demo ID ${demoUserId}...`);
+            db.run("DELETE FROM metas_empleado WHERE usuario_id = ?", [demoUserId], () => {
+                const insertMeta = db.prepare(`
+                    INSERT INTO metas_empleado (usuario_id, titulo, descripcion, indicador, peso, porcentaje_avance, categoria, fecha_limite, estatus)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `);
+
+                // Meta 1 (40%): Evaluación y Adopción del Hub RDL
+                insertMeta.run(
+                    demoUserId,
+                    'Evaluación y Adopción del Hub RDL',
+                    'Supervisión y auditoría de módulos operativos: Muro, Directorio Buk, Vacaciones, Metas y Reportes.',
+                    '100% de módulos operativos validados por la dirección',
+                    40.0,
+                    85.0,
+                    'OKR',
+                    '2026-10-31',
+                    'EN_PROGRESO'
+                );
+
+                // Meta 2 (35%): Auditoría y Cumplimiento Normativo (NOM-035 / LFT)
+                insertMeta.run(
+                    demoUserId,
+                    'Auditoría y Cumplimiento Normativo (NOM-035 / LFT)',
+                    'Garantizar la trazabilidad de incidencias y justificación de ausencias legales.',
+                    '0 incidencias sin justificación documental ni visto bueno',
+                    35.0,
+                    70.0,
+                    'Caso Legal',
+                    '2026-11-15',
+                    'EN_PROGRESO'
+                );
+
+                // Meta 3 (25%): Optimización y Extracción de Reportes de Talento
+                insertMeta.run(
+                    demoUserId,
+                    'Optimización y Extracción de Reportes de Talento',
+                    'Configuración de plantillas personalizadas en Excel y análisis de métricas clave.',
+                    'Generación y exportación de reportes consolidados sin errores',
+                    25.0,
+                    90.0,
+                    'Desempeño',
+                    '2026-12-15',
+                    'EN_PROGRESO'
+                );
+
+                insertMeta.finalize(() => {
+                    console.log("✅ Metas ponderadas (100%) registradas para usuario Demo.");
+                });
+            });
+        }
+    });
+
+    // 2. Notificaciones en Tiempo Real para el usuario Demo
+    db.get("SELECT COUNT(*) as count FROM notificaciones WHERE usuario_id = ?", [demoUserId], (notifErr, nRow) => {
+        const notifCount = nRow ? nRow.count : 0;
+        if (!notifErr && notifCount < 2) {
+            console.log(`🔔 Sembrando notificaciones de bienvenida para usuario Demo ID ${demoUserId}...`);
+            db.run("DELETE FROM notificaciones WHERE usuario_id = ?", [demoUserId], () => {
+                const insertNotif = db.prepare(`
+                    INSERT INTO notificaciones (usuario_id, remitente_id, remitente_nombre, remitente_avatar, tipo, titulo, mensaje, leido)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                `);
+
+                insertNotif.run(
+                    demoUserId,
+                    10,
+                    'Lic. Denis Ramos',
+                    'DR',
+                    'INCIDENCIA_SOLICITUD',
+                    'Nueva Solicitud de Permiso por Día',
+                    'Lic. Denis Ramos ha solicitado un Permiso por día (con goce de sueldo) para el 2026-10-05.',
+                    0
+                );
+
+                insertNotif.run(
+                    demoUserId,
+                    1,
+                    'Dirección de Talento RDL',
+                    'AC',
+                    'SISTEMA',
+                    '¡Bienvenido al Entorno de Evaluación RDL Hub!',
+                    'Tu perfil cuenta con privilegios de Administrador para evaluar todos los módulos corporativos: Muro, Reportes Excel, Fichas Buk y Metas.',
+                    0
+                );
+
+                insertNotif.finalize(() => {
+                    console.log("✅ Notificaciones iniciales creadas para usuario Demo.");
+                });
+            });
+        }
+    });
+
+    // 3. Vincular a Denis Ramos como colaboradora a cargo y asegurar solicitudes pendientes para el módulo de Aprobación
+    const setupDenis = (denisId) => {
+        db.run("UPDATE usuarios SET lider_id = ?, rfc = COALESCE(rfc, 'RAMD940612RD1') WHERE id = ?", [demoUserId, denisId], () => {
+            // Reasignar solicitudes pendientes al nuevo líder Demo
+            db.run("UPDATE incidencias_vacaciones SET lider_id = ? WHERE usuario_id = ? AND estatus = 'PENDIENTE'", [demoUserId, denisId], () => {
+                db.get("SELECT COUNT(*) as count FROM incidencias_vacaciones WHERE lider_id = ? AND estatus = 'PENDIENTE'", [demoUserId], (incErr, incRow) => {
+                    if (!incErr && (!incRow || incRow.count === 0)) {
+                        console.log("✈️ Creando incidencias de prueba para evaluar módulo de Aprobación...");
+                        const insertInc = db.prepare(`
+                            INSERT INTO incidencias_vacaciones (
+                                usuario_id, usuario_nombre, usuario_rol, tipo, subtipo,
+                                fecha_inicio, fecha_fin, hora_inicio, hora_fin, horas_solicitadas,
+                                dias_solicitados, motivo, estatus, lider_id
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        `);
+
+                        insertInc.run(
+                            denisId,
+                            'Lic. Denis Ramos',
+                            'ABOGADA_JR',
+                            'Permiso',
+                            'DIA_CON_GOCE',
+                            '2026-10-05',
+                            '2026-10-05',
+                            null,
+                            null,
+                            0,
+                            1,
+                            'Trámite oficial y renovación de pasaporte para viaje corporativo.',
+                            'PENDIENTE',
+                            demoUserId
+                        );
+
+                        insertInc.run(
+                            denisId,
+                            'Lic. Denis Ramos',
+                            'ABOGADA_JR',
+                            'Vacaciones',
+                            'VACACIONES',
+                            '2026-10-12',
+                            '2026-10-16',
+                            null,
+                            null,
+                            0,
+                            5,
+                            'Periodo vacacional semestral de descanso conforme a LFT.',
+                            'PENDIENTE',
+                            demoUserId
+                        );
+
+                        insertInc.finalize(() => {
+                            console.log("✅ Incidencias pendientes creadas para que el usuario Demo pueda aprobarlas.");
+                        });
+                    }
+                });
+            });
+        });
+    };
+
+    db.get("SELECT id, nombre, email FROM usuarios WHERE LOWER(email) = 'denis@rdl.com.mx' LIMIT 1", [], (denisErr, denis) => {
+        if (!denisErr && denis) {
+            setupDenis(denis.id);
+        } else if (!denisErr && !denis) {
+            db.run(`
+                INSERT INTO usuarios (
+                    email, nombre, rol, puesto, departamento, avatar, telefono,
+                    fecha_ingreso, tipo_contrato, numero_empleado, rfc,
+                    dias_vacaciones_totales, dias_vacaciones_tomados, estatus_laboral, lider_id
+                ) VALUES ('denis@rdl.com.mx', 'Lic. Denis Ramos', 'ABOGADA_JR', 'Abogada Junior de Litigio', 'Legal & Talent RDL', 'DR', '+52 (55) 5482-9010', '2025-02-01', 'Tiempo Indeterminado', 'RDL-035', 'RAMD940612RD1', 12, 2, 'ACTIVO', ?)
+            `, [demoUserId], function(insDenisErr) {
+                if (!insDenisErr && this.lastID) {
+                    setupDenis(this.lastID);
+                }
             });
         }
     });
