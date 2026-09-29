@@ -502,6 +502,105 @@ app.post('/api/feed/:id/like', (req, res) => {
     });
 });
 
+// ============================================================
+// COMENTARIOS EN EL MURO CORPORATIVO (HABILITADO PARA TODOS LOS ROLES)
+// ============================================================
+// Obtener todos los comentarios de una publicación
+app.get('/api/feed/:id/comentarios', (req, res) => {
+    const postID = req.params.id;
+    const query = `
+        SELECT c.*, u.puesto as autor_puesto, u.rol as autor_rol, u.departamento as autor_departamento
+        FROM feed_comentarios c
+        LEFT JOIN usuarios u ON u.id = c.autor_id
+        WHERE c.publicacion_id = ?
+        ORDER BY c.fecha ASC, c.id ASC
+    `;
+    db.all(query, [postID], (err, rows) => {
+        if (err) return res.status(500).json({ success: false, error: err.message });
+        res.json({ success: true, data: rows || [] });
+    });
+});
+
+// Agregar nuevo comentario (Habilitado para TODOS los perfiles)
+app.post('/api/feed/:id/comentarios', (req, res) => {
+    const postID = parseInt(req.params.id, 10);
+    const { autor_id, autor_nombre, autor_avatar, comentario } = req.body || {};
+
+    if (!comentario || typeof comentario !== 'string' || !comentario.trim()) {
+        return res.status(400).json({ success: false, error: 'El comentario no puede estar vacío.' });
+    }
+
+    let userId = autor_id;
+    let userName = autor_nombre;
+    let userAvatar = autor_avatar;
+
+    // Si no vienen en el body, intentar obtener del token de sesión
+    if (!userId) {
+        const token = (req.cookies && req.cookies.rdl_session) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+        if (token) {
+            const decoded = verificarJwt(token);
+            if (decoded) {
+                userId = decoded.id;
+                userName = userName || decoded.nombre;
+                userAvatar = userAvatar || decoded.avatar;
+            }
+        }
+    }
+
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Debes iniciar sesión para comentar.' });
+    }
+
+    const cleanComment = comentario.trim();
+
+    // Obtener datos del usuario para autor_nombre y autor_avatar si faltan
+    db.get('SELECT id, nombre, avatar, puesto, rol FROM usuarios WHERE id = ?', [userId], (uErr, user) => {
+        const finalNombre = userName || (user ? user.nombre : 'Colaborador RDL');
+        const finalAvatar = userAvatar || (user ? user.avatar : 'RD');
+        const finalPuesto = user ? user.puesto : 'Colaborador';
+        const finalRol = user ? user.rol : 'CORPORATIVO';
+
+        const stmt = db.prepare(`
+            INSERT INTO feed_comentarios (publicacion_id, autor_id, autor_nombre, autor_avatar, comentario)
+            VALUES (?, ?, ?, ?, ?)
+        `);
+
+        stmt.run([postID, userId, finalNombre, finalAvatar, cleanComment], function (err) {
+            if (err) return res.status(500).json({ success: false, error: err.message });
+
+            const nuevoComentario = {
+                id: this.lastID,
+                publicacion_id: postID,
+                autor_id: userId,
+                autor_nombre: finalNombre,
+                autor_avatar: finalAvatar,
+                autor_puesto: finalPuesto,
+                autor_rol: finalRol,
+                comentario: cleanComment,
+                fecha: new Date().toISOString()
+            };
+
+            // Obtener conteo actualizado de comentarios
+            db.get('SELECT COUNT(*) as count FROM feed_comentarios WHERE publicacion_id = ?', [postID], (cErr, cRow) => {
+                const totalComentarios = cRow ? cRow.count : 1;
+
+                // Notificar en tiempo real a todas las computadoras conectadas
+                io.emit('feed:nuevo_comentario', {
+                    publicacion_id: postID,
+                    comentario: nuevoComentario,
+                    comentarios_count: totalComentarios
+                });
+
+                res.json({
+                    success: true,
+                    data: nuevoComentario,
+                    comentarios_count: totalComentarios
+                });
+            });
+        });
+    });
+});
+
 // 3. MÓDULO DE METAS PONDERADAS (PESOS = 100%, INDICADORES, AVANCE)
 app.get('/api/metas/:usuario_id', (req, res) => {
     const usuarioId = req.params.usuario_id;

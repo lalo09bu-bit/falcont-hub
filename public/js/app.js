@@ -23,10 +23,10 @@ function runSplashScreenAnimation(onCompleteCallback) {
     const statusText = document.getElementById('splash-status-text');
 
     const steps = [
-        { pct: 25, text: 'Inicializando motor RDL Intelligence Hub...' },
-        { pct: 55, text: 'Estableciendo WebSocket en puerto 9060...' },
-        { pct: 85, text: 'Cargando esquema SQLite, metas ponderadas (100%) y vacaciones...' },
-        { pct: 100, text: '¡Plataforma RDL lista!' }
+        { pct: 25, text: 'Iniciando RDL Intelligence Hub...' },
+        { pct: 55, text: 'Sincronizando información de colaboradores...' },
+        { pct: 85, text: 'Cargando indicadores de desempeño y ausencias...' },
+        { pct: 100, text: '¡Bienvenido(a) a tu espacio de trabajo!' }
     ];
 
     let currentStep = 0;

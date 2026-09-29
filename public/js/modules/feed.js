@@ -20,6 +20,10 @@ class FeedModule {
         window.addEventListener('rdl_like_actualizado', (e) => {
             this.handleLikeActualizado(e.detail);
         });
+
+        window.addEventListener('rdl_nuevo_comentario', (e) => {
+            this.handleNuevoComentario(e.detail);
+        });
     }
 
     bindEvents() {
@@ -233,7 +237,35 @@ class FeedModule {
                     <button class="btn-like ${isLiked ? 'liked' : ''}" id="btn-like-${post.id}" onclick="feedMod.darLike(${post.id})">
                         👍 <span>${isLiked ? 'Te gusta' : 'Me Gusta'}</span> (<span id="like-count-${post.id}">${post.likes_count}</span>)
                     </button>
-                    <span class="comments-count">💬 ${post.comentarios_count || 0} Comentarios</span>
+                    <button class="btn-comment-toggle" id="btn-comments-toggle-${post.id}" onclick="feedMod.toggleComentarios(${post.id})" title="Ver y escribir comentarios">
+                        💬 <span id="comments-count-${post.id}">${post.comentarios_count || 0}</span> Comentarios
+                    </button>
+                </div>
+
+                <!-- Sección Desplegable de Comentarios -->
+                <div class="post-comments-container hidden" id="comments-container-${post.id}">
+                    <div class="comments-list" id="comments-list-${post.id}">
+                        <div class="comments-empty-notice">Cargando comentarios...</div>
+                    </div>
+
+                    <!-- Caja para Escribir Comentario (Habilitada para TODOS los perfiles) -->
+                    <form class="comment-input-form" onsubmit="feedMod.submitComentario(event, ${post.id})">
+                        <div class="comment-avatar-bubble">${window.currentUser && window.currentUser.nombre ? window.currentUser.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'RD'}</div>
+                        <div class="comment-field-wrapper">
+                            <input 
+                                type="text" 
+                                class="comment-input" 
+                                id="comment-input-${post.id}" 
+                                placeholder="Escribe un comentario..." 
+                                maxlength="500" 
+                                autocomplete="off"
+                                required
+                            />
+                            <button type="submit" class="btn-send-comment" id="btn-send-comment-${post.id}" title="Publicar Comentario">
+                                Enviar
+                            </button>
+                        </div>
+                    </form>
                 </div>
             `;
 
@@ -386,6 +418,216 @@ class FeedModule {
                 }
             }
         }
+    }
+
+    async toggleComentarios(postId) {
+        const container = document.getElementById(`comments-container-${postId}`);
+        if (!container) return;
+
+        const isHidden = container.classList.contains('hidden');
+        if (isHidden) {
+            container.classList.remove('hidden');
+            await this.loadComentarios(postId);
+            const input = document.getElementById(`comment-input-${postId}`);
+            if (input) input.focus();
+        } else {
+            container.classList.add('hidden');
+        }
+    }
+
+    async loadComentarios(postId) {
+        const listEl = document.getElementById(`comments-list-${postId}`);
+        if (!listEl) return;
+
+        try {
+            const res = await fetch(`/api/feed/${postId}/comentarios`);
+            const data = await res.json();
+            if (data.success) {
+                this.renderComentarios(postId, data.data || []);
+            } else {
+                listEl.innerHTML = '<div class="comments-empty-notice">No se pudieron cargar los comentarios.</div>';
+            }
+        } catch (err) {
+            console.error('Error al cargar comentarios:', err);
+            listEl.innerHTML = '<div class="comments-empty-notice">Error de conexión al cargar comentarios.</div>';
+        }
+    }
+
+    renderComentarios(postId, comentarios) {
+        const listEl = document.getElementById(`comments-list-${postId}`);
+        if (!listEl) return;
+
+        listEl.innerHTML = '';
+
+        if (!comentarios || comentarios.length === 0) {
+            listEl.innerHTML = '<div class="comments-empty-notice">No hay comentarios aún. ¡Sé la primera persona en participar!</div>';
+            return;
+        }
+
+        comentarios.forEach(c => {
+            const item = document.createElement('div');
+            item.className = 'comment-item';
+            item.id = `comment-item-${c.id}`;
+
+            const initials = c.autor_avatar || (c.autor_nombre ? c.autor_nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'RD');
+            const fechaStr = new Date(c.fecha).toLocaleDateString('es-MX', {
+                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+            });
+
+            item.innerHTML = `
+                <div class="comment-author-avatar">${initials}</div>
+                <div class="comment-content-bubble">
+                    <div class="comment-author-row">
+                        <span class="comment-author-name">${c.autor_nombre}</span>
+                        <span class="comment-author-puesto">${c.autor_puesto || c.autor_rol || 'Colaborador'}</span>
+                        <span class="comment-date">${fechaStr}</span>
+                    </div>
+                    <p class="comment-text">${this.escapeHtml(c.comentario)}</p>
+                </div>
+            `;
+
+            listEl.appendChild(item);
+        });
+
+        listEl.scrollTop = listEl.scrollHeight;
+    }
+
+    async submitComentario(event, postId) {
+        event.preventDefault();
+        const input = document.getElementById(`comment-input-${postId}`);
+        const sendBtn = document.getElementById(`btn-send-comment-${postId}`);
+        if (!input) return;
+
+        const text = input.value.trim();
+        if (!text) return;
+
+        const user = window.currentUser;
+        if (!user) {
+            alert('Debes iniciar sesión para publicar un comentario.');
+            return;
+        }
+
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.textContent = '...';
+        }
+
+        const payload = {
+            autor_id: user.id,
+            autor_nombre: user.nombre,
+            autor_avatar: user.avatar || user.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+            comentario: text
+        };
+
+        try {
+            const res = await fetch(`/api/feed/${postId}/comentarios`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.success) {
+                input.value = '';
+                
+                // Actualizar contador
+                const countEl = document.getElementById(`comments-count-${postId}`);
+                if (countEl) countEl.textContent = data.comentarios_count;
+
+                // Añadir a la lista inmediatamente
+                const listEl = document.getElementById(`comments-list-${postId}`);
+                if (listEl) {
+                    const notice = listEl.querySelector('.comments-empty-notice');
+                    if (notice) notice.remove();
+
+                    const exists = document.getElementById(`comment-item-${data.data.id}`);
+                    if (!exists) {
+                        const item = document.createElement('div');
+                        item.className = 'comment-item';
+                        item.id = `comment-item-${data.data.id}`;
+
+                        const initials = data.data.autor_avatar || 'RD';
+                        const fechaStr = new Date(data.data.fecha).toLocaleDateString('es-MX', {
+                            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                        });
+
+                        item.innerHTML = `
+                            <div class="comment-author-avatar">${initials}</div>
+                            <div class="comment-content-bubble">
+                                <div class="comment-author-row">
+                                    <span class="comment-author-name">${data.data.autor_nombre}</span>
+                                    <span class="comment-author-puesto">${data.data.autor_puesto || data.data.autor_rol || 'Colaborador'}</span>
+                                    <span class="comment-date">${fechaStr}</span>
+                                </div>
+                                <p class="comment-text">${this.escapeHtml(data.data.comentario)}</p>
+                            </div>
+                        `;
+                        listEl.appendChild(item);
+                        listEl.scrollTop = listEl.scrollHeight;
+                    }
+                }
+            } else {
+                alert(data.error || 'Error al enviar el comentario.');
+            }
+        } catch (err) {
+            console.error('Error al enviar comentario:', err);
+            alert('Error de conexión al enviar comentario.');
+        } finally {
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Enviar';
+            }
+        }
+    }
+
+    handleNuevoComentario(data) {
+        if (!data || !data.publicacion_id) return;
+
+        // 1. Actualizar el contador en la tarjeta
+        const countEl = document.getElementById(`comments-count-${data.publicacion_id}`);
+        if (countEl) countEl.textContent = data.comentarios_count;
+
+        // 2. Si la sección de comentarios está abierta en pantalla, agregar el comentario si no existe
+        const listEl = document.getElementById(`comments-list-${data.publicacion_id}`);
+        if (listEl && data.comentario) {
+            const exists = document.getElementById(`comment-item-${data.comentario.id}`);
+            if (!exists) {
+                const notice = listEl.querySelector('.comments-empty-notice');
+                if (notice) notice.remove();
+
+                const item = document.createElement('div');
+                item.className = 'comment-item';
+                item.id = `comment-item-${data.comentario.id}`;
+
+                const initials = data.comentario.autor_avatar || 'RD';
+                const fechaStr = new Date(data.comentario.fecha).toLocaleDateString('es-MX', {
+                    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                });
+
+                item.innerHTML = `
+                    <div class="comment-author-avatar">${initials}</div>
+                    <div class="comment-content-bubble">
+                        <div class="comment-author-row">
+                            <span class="comment-author-name">${data.comentario.autor_nombre}</span>
+                            <span class="comment-author-puesto">${data.comentario.autor_puesto || data.comentario.autor_rol || 'Colaborador'}</span>
+                            <span class="comment-date">${fechaStr}</span>
+                        </div>
+                        <p class="comment-text">${this.escapeHtml(data.comentario.comentario)}</p>
+                    </div>
+                `;
+                listEl.appendChild(item);
+                listEl.scrollTop = listEl.scrollHeight;
+            }
+        }
+    }
+
+    escapeHtml(str) {
+        if (!str) return '';
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 }
 

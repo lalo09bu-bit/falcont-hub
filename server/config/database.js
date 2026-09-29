@@ -478,8 +478,8 @@ function seedFeedAndMetas() {
 
             insertFeed.run(
                 1, 'Lic. Sofia Ramirez', 'ADMIN', 'SR',
-                '¡Bienvenidas a la plataforma RDL Intelligence Hub!',
-                'Iniciamos oficialmente operaciones en nuestra plataforma interconectada en tiempo real (Astro + Floating-UI). Aquí compartiremos comunicados oficiales, avisos legales, seguimiento de casos, metas ponderadas (100%), directorio Buk y el control de vacaciones.',
+                '¡Bienvenidas a RDL Intelligence Hub!',
+                'Iniciamos oficialmente operaciones en nuestro nuevo portal de talento. Aquí compartiremos comunicados oficiales, avisos legales, seguimiento de casos, metas ponderadas (100%), directorio de colaboradores y control de vacaciones y permisos.',
                 'Corporativo', 5
             );
 

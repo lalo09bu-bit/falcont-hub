@@ -133,7 +133,7 @@ class ClientSocketHandler {
     updateNetworkStatus(connected) {
         const text = document.getElementById('network-status-text');
         if (text) {
-            text.textContent = connected ? `Red RDL Activa` : `Desconectado - Reintentando...`;
+            text.textContent = connected ? `En línea` : `Reconectando...`;
         }
     }
 

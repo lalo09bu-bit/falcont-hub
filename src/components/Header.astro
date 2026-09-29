@@ -5,41 +5,47 @@
         <img src="/Logo RDL.png" alt="RDL Logo" class="header-logo" onerror="this.onerror=null; this.src='Logo RDL.png';">
         <div>
             <span class="header-title">RDL INTELLIGENCE HUB</span>
-            <span class="header-subtitle">Plataforma Corporativa Interconectada (Astro Powered)</span>
+            <span class="header-subtitle">Portal Institucional de Gestión & Talento</span>
         </div>
     </div>
 
-    <!-- Buscador Global estilo Buk / Spotlight Search -->
-    <div class="header-search-wrapper" id="header-search-container">
-        <div class="header-search-bar">
-            <span class="search-icon">🔍</span>
-            <input 
-                type="text" 
-                id="header-search-input" 
-                placeholder="Buscar colaboradora, puesto, departamento o ID..." 
-                autocomplete="off"
-            />
-            <div class="search-kbd-badge" title="Atajo de teclado">
-                <kbd>Ctrl</kbd> + <kbd>K</kbd>
+    <!-- Sección Central: Buscador Global + Acciones Rápidas + Estado en Línea -->
+    <div class="header-center-zone">
+        <!-- Buscador Global estilo Buk / Spotlight Search -->
+        <div class="header-search-wrapper" id="header-search-container">
+            <div class="header-search-bar">
+                <span class="search-icon">🔍</span>
+                <input 
+                    type="text" 
+                    id="header-search-input" 
+                    placeholder="Buscar colaboradora, puesto o ID..." 
+                    autocomplete="off"
+                />
+                <div class="search-kbd-badge" title="Atajo de teclado">
+                    <kbd>Ctrl</kbd> + <kbd>K</kbd>
+                </div>
             </div>
-            <button class="btn-directorio-trigger" onclick="directorioMod.openDirectory()" title="Abrir Directorio Completo">
+
+            <!-- Dropdown Flotante de Resultados de Búsqueda -->
+            <div class="header-search-dropdown glass-card" id="header-search-results">
+                <!-- Se puebla dinámicamente desde directorio.js -->
+            </div>
+        </div>
+
+        <!-- Grupo de Acciones de Navegación -->
+        <div class="header-actions-group">
+            <button class="btn-header-action" onclick="directorioMod.openDirectory()" title="Abrir Directorio de Colaboradores">
                 👥 Directorio
             </button>
-            <button class="btn-directorio-trigger btn-header-reportes" id="btn-header-reportes" onclick="reportesMod.openModal()" title="Centro de Reportes & Exportadores en Excel (Exclusivo RH)" style="display: none; background: #0f766e; color: #ffffff; border: 1px solid #14b8a6; margin-left: 6px;">
+            <button class="btn-header-action btn-header-reportes" id="btn-header-reportes" onclick="reportesMod.openModal()" title="Centro de Reportes & Exportadores en Excel (Exclusivo RH)" style="display: none;">
                 📊 Reportes Excel
             </button>
         </div>
 
-        <!-- Dropdown Flotante de Resultados de Búsqueda -->
-        <div class="header-search-dropdown glass-card" id="header-search-results">
-            <!-- Se puebla dinámicamente desde directorio.js -->
-        </div>
-    </div>
-
-    <div class="header-center-info">
-        <div class="network-badge" id="btn-network-config" title="Haz clic para vincular otra computadora">
+        <!-- Indicador de Conexión en Línea (Discreto y No Técnico) -->
+        <div class="header-status-badge" id="btn-network-config" title="Conexión segura y sincronizada en tiempo real">
             <span class="pulse-green"></span>
-            <span id="network-status-text">Red RDL Activa (Puerto 9060)</span>
+            <span id="network-status-text">En línea</span>
         </div>
     </div>
 
