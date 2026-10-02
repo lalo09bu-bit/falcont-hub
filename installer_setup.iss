@@ -1,16 +1,16 @@
 ; ============================================================
-; RDL INTELLIGENCE HUB - OFFICIAL INNO SETUP SCRIPT (.ISS)
+; FALCONT HUB - OFFICIAL INNO SETUP SCRIPT (.ISS)
 ; Lanzamiento 100% Silencioso y Estético (Sin Cuadro Negro CMD)
 ; ============================================================
 
-#define MyAppName "RDL Intelligence Hub"
+#define MyAppName "FALCONT HUB"
 #define MyAppVersion "1.0.0"
-#define MyAppPublisher "Reclutamiento e Integracion de Talento (RDL)"
-#define MyAppURL "https://rdl.com.mx"
-#define MyAppExeName "Iniciar RDL Intelligence Hub.vbs"
+#define MyAppPublisher "FALCONT Despacho Contable"
+#define MyAppURL "https://falcont.com.mx"
+#define MyAppExeName "Iniciar FALCONT HUB.vbs"
 
 [Setup]
-AppId={{D37E860F-992A-4F7D-8F25-C7E6C1004D01}
+AppId={{E48F971G-003B-5F8E-9G36-D8F7D2015E02}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
@@ -22,11 +22,11 @@ PrivilegesRequiredOverridesAllowed=dialog
 DefaultDirName={userappdata}\{#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=OutputInstaller
-OutputBaseFilename=RDL_Intelligence_Hub_Setup
+OutputBaseFilename=FALCONT_HUB_Setup
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
-SetupIconFile=public\Logo RDL.ico
+SetupIconFile=public\favicon.svg
 
 [Languages]
 Name: "default"; MessagesFile: "compiler:Default.isl"
@@ -35,11 +35,11 @@ Name: "default"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "OutputInstaller\RDL_Intelligence_Hub_Package\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "OutputInstaller\FALCONT_HUB_Package\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{userprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\Logo RDL.ico"
-Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\Logo RDL.ico"
+Name: "{userprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: shellexec postinstall skipifsilent

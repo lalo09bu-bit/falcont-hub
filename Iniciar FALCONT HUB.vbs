@@ -1,4 +1,4 @@
-Dim WshShell, fso, scriptPath, appDir, nodeExe, serverScript, localAppData, rdlProfile, edgeCmd
+Dim WshShell, fso, scriptPath, appDir, nodeExe, serverScript, localAppData, falcontProfile, edgeCmd
 Dim http, isReady, i
 
 Set WshShell = CreateObject("WScript.Shell")
@@ -43,18 +43,23 @@ For i = 1 To 25
     WScript.Sleep 400
 Next
 
-' 3. Abrir la interfaz nativa ejecutable de RDL Hub
+' 3. Lanzar la ventana en modo ejecutable nativo de escritorio (Edge / Chrome / Navegador Predeterminado)
 localAppData = WshShell.ExpandEnvironmentStrings("%LOCALAPPDATA%")
-rdlProfile = localAppData & "\RDL_Hub_Profile"
+falcontProfile = localAppData & "\FALCONT_Hub_Profile"
 
-edgeCmd = "msedge --app=http://localhost:9060 --user-data-dir=""" & rdlProfile & """ --window-size=1360,860"
+edgeCmd = "msedge --app=http://localhost:9060 --user-data-dir=""" & falcontProfile & """ --window-size=1360,860"
+
 On Error Resume Next
 WshShell.Run edgeCmd, 1, False
-
 If Err.Number <> 0 Then
     Err.Clear
-    WshShell.Run "chrome --app=http://localhost:9060 --user-data-dir=""" & rdlProfile & """", 1, False
+    WshShell.Run "chrome --app=http://localhost:9060 --user-data-dir=""" & falcontProfile & """ --window-size=1360,860", 1, False
     If Err.Number <> 0 Then
+        Err.Clear
         WshShell.Run "http://localhost:9060", 1, False
     End If
 End If
+On Error GoTo 0
+
+Set WshShell = Nothing
+Set fso = Nothing
