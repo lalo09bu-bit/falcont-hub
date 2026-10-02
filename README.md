@@ -1,20 +1,30 @@
-# 🏛️ RDL Intelligence Hub
+# 🏛️ FALCONT HUB - Despacho Contable
 
-Plataforma corporativa integral para la gestión de talento, balance de metas y KPIs ponderados, incidencias laborales y comunicación interna en tiempo real para **RDL Reclutamiento e Integración de Talento**.
+Portal institucional para la gestión integral de talento, despacho contable, balance de metas y KPIs ponderados (100%), incidencias laborales, control de vacaciones y comunicación interna en tiempo real para **FALCONT Despacho Contable**.
+
+---
+
+## 🎨 Identidad Institucional & Colores Oficiales
+
+- **Azul Acero Primario (Alas del Emblema):** `#55789B`
+- **Azul Acero Oscuro / Navy:** `#2C4661`
+- **Negro Carbón Institucional (Tipografía FALCONT):** `#231E1E`
+- **Fondo Corporativo:** `#FFFFFF` / `#F8FAFC`
+- **Tipografía:** Inter / SF Pro Display
 
 ---
 
 ## 🚀 Inicio Rápido (Instalación Local)
 
 ### 1. Requisitos Previos
-- **Node.js** (versión 18 o superior recomendada)
-- **npm** o **pnpm**
+- **Node.js** (v18 o superior)
+- **Git**
 
 ### 2. Pasos de Instalación
 ```bash
 # 1. Clonar el repositorio
-git clone <URL_DE_TU_REPOSITORIO_GITHUB>
-cd "Desarrollo HUB RDL"
+git clone https://github.com/lalo09bu-bit/falcont-hub.git
+cd falcont-hub
 
 # 2. Instalar dependencias
 npm install
@@ -22,83 +32,56 @@ npm install
 # 3. Compilar la interfaz (Astro)
 npm run build
 
-# 4. Inicializar y sembrar la base de datos (SQLite)
-npm run seed
-
-# 5. Iniciar la plataforma
+# 4. Iniciar la plataforma
 npm start
 ```
-El sistema estará escuchando en **`http://localhost:9060`** (o en la IP de red local en el puerto `9060`).
+El sistema estará escuchando en **`http://localhost:9060`** (o en el puerto definido por la variable `PORT`).
 
 ---
 
 ## 👥 Cuentas de Prueba Corporativas (Modo Dev / 1-Clic)
 
-En la pantalla de acceso (`/login`), puedes entrar con 1 solo clic o utilizando los siguientes correos:
+En la pantalla de acceso (`/login`), se incluye un panel de acceso directo de 1 clic para demostración con clientes:
 
-| Perfil / Colaborador | Correo Corporativo | Rol en el Hub | Permisos Destacados |
-| :--- | :--- | :--- | :--- |
-| **Lic. Andrés Cosmes** | `rh@rdl.com.mx` | `RH` | Control total: asignar/eliminar metas, aprobar vacaciones, editar fichas y comunicados |
-| **Lic. Valeria Mendoza** | `valeria.mendoza@rdl.com.mx` | `Abogada_Sr` | Metas al 100%, KPIs de laudos y convenios, visualización de incidencias |
-| **Lic. Sofía Ramírez** | `sofia.ramirez@rdl.com.mx` | `Admin` / Sr | Coordinación jurídica y publicación de comunicados legales |
-| **Lic. Ana Martínez** | `ana.martinez@rdl.com.mx` | `Abogada_Jr` | Metas de redacción de demandas y audiencias al 100% |
-| **Lic. Mariana Torres** | `mariana.torres@rdl.com.mx` | `Abogada_Jr` | Solicitudes de vacaciones pendientes y seguimiento operativo |
-
----
-
-## 🌐 ¿Cómo probarlo en otras computadoras?
-
-Existen dos escenarios principales según la ubicación de las otras computadoras:
-
-### Escenario A: Otras computadoras en la MISMA oficina o red Wi-Fi
-1. Averigua la IP local de la computadora donde está corriendo el servidor (por ejemplo `192.168.1.89`).
-2. En la otra computadora conectada al mismo Wi-Fi, abre el navegador y escribe:
-   ```text
-   http://192.168.1.89:9060
-   ```
-3. *(Nota: Si Windows Firewall muestra una advertencia, permite el acceso en redes privadas).*
-
-### Escenario B: Otras computadoras en OTRA oficina, casa o celulares (Vía Internet / Túnel Seguro)
-No necesitas configurar puertos en el módem ni pagar servidores para probarlo de inmediato:
-1. En la computadora anfitriona, abre una terminal y ejecuta:
-   ```bash
-   npx untun@latest tunnel --port 9060
-   # O utilizando Cloudflare Tunnel directamente:
-   # npx cloudflared tunnel --url http://localhost:9060
-   ```
-2. Te generará un enlace público seguro `https://xxxx.trycloudflare.com`.
-3. Abre ese enlace desde cualquier computadora en cualquier ciudad o dispositivo móvil.
-
-### Escenario C: Despliegue permanente 24/7 en la nube
-Puedes conectar este repositorio de GitHub a un servicio como **Render.com** o **Railway.app** (ambos con planes gratuitos):
-- **Build Command:** `npm install && npm run build && npm run seed`
-- **Start Command:** `npm start`
-- Tendrás un enlace permanente como `https://rdl-hub.onrender.com` disponible los 365 días del año sin necesidad de mantener tu computadora encendida.
+| Perfil / Colaborador | Correo Institucional | RFC | Rol | Permisos Destacados |
+| :--- | :--- | :--- | :--- | :--- |
+| **C.P.C. Carlos Mendoza (Demo 360°)** | `demo@falcont.com.mx` | `DEMO880101FLC` | `ADMIN` | 🎯 Metas 100% ponderadas, panel de control total, aprobación de vacaciones, exportación de reportes |
+| **Lic. Andrés Cosmes** | `rh@falcont.com.mx` | `COSR880101FLC` | `RH` | Gestión de personal, aprobación de incidencias, creación de colaboradores |
+| **C.P. Valeria Falcón** | `valeria.falcon@falcont.com.mx` | `FALV900101FLC` | `CONTADOR_SR` | Publicación en muro, asignación y seguimiento de metas contables |
+| **C.P. Denis Ramos** | `denis.ramos@falcont.com.mx` | `RAMD950101FLC` | `CONTADOR_JR` | Solicitud de vacaciones con goce pendiente de autorización |
 
 ---
 
-## 🛠️ Estructura del Proyecto
+## ☁️ Despliegue en Render Cloud
 
-```text
-├── src/                      # Código fuente del Frontend (Astro)
-│   ├── components/           # Componentes modulares (Auth, Perfil, Metas, Feed, Red)
-│   ├── layouts/              # Layout corporativo base
-│   └── pages/                # Páginas (index.astro, login.astro)
-├── server/                   # Backend Node.js + Express
-│   ├── routes/               # Endpoints REST (auth, usuarios, metas, incidencias, feed)
-│   ├── services/             # Lógica de negocio, JWT, tokens y correo Resend
-│   ├── scripts/              # Semillas y migraciones SQLite (seed-mock-data.js)
-│   └── server.js             # Servidor HTTP + WebSockets (Socket.io)
-├── public/                   # Activos estáticos, estilos corporativos y lógica cliente
-├── rdl_intelligence_hub.db   # Base de datos SQLite (generada con npm run seed)
-├── astro.config.mjs          # Configuración de Astro
-└── package.json              # Dependencias y scripts
-```
+El repositorio contiene `render.yaml` (Render Blueprint) para un despliegue automatizado con cero fricción:
+
+### Opción 1: Conectar Repositorio en Render (Recomendada)
+1. Inicia sesión en [Render Dashboard](https://dashboard.render.com).
+2. Haz clic en **New +** y selecciona **Web Service**.
+3. Conecta tu repositorio de GitHub: `lalo09bu-bit/falcont-hub`.
+4. Configura los parámetros:
+   - **Name:** `falcont-hub`
+   - **Region:** Oregon (US West) u Ohio (US East)
+   - **Branch:** `main`
+   - **Runtime:** `Node`
+   - **Build Command:** `npm install && npm run build`
+   - **Start Command:** `npm start`
+5. En la sección **Environment Variables**, añade:
+   - `NODE_ENV`: `production`
+   - `PORT`: `10000`
+   - `JWT_SECRET`: *(cualquier clave secreta segura de 32+ caracteres)*
+6. Haz clic en **Create Web Service**. ¡Render compilará y desplegará tu aplicación automáticamente!
+
+### Opción 2: Usar Render Blueprint
+1. En Render Dashboard, haz clic en **New +** > **Blueprint**.
+2. Conecta el repositorio `lalo09bu-bit/falcont-hub`. Render leerá automáticamente el archivo `render.yaml` y configurará todo.
 
 ---
 
-## 🎨 Paleta Corporativa Oficial RDL
-- **Fondo:** Blanco Puro (`#ffffff`) y Slate Claro (`#f8fafc`).
-- **Primario / Acción:** Verde Pino / Deep Teal (`#136a60`).
-- **Secundario / Encabezados:** Azul Marino RDL (`#0f2d4a`).
-- **Bordes y Divisiones:** Slate Suave (`#e2e8f0`).
+## 🔒 Dominios Institucionales Autorizados para Login
+
+- `@falcont.com.mx`
+- `@falcont.mx`
+- `@adeltaconsultores.com`
+- `@rdlabogados.com.mx`

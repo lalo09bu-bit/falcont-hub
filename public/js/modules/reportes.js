@@ -37,7 +37,7 @@ class ReportesModule {
 
     checkUserPermissions(user) {
         if (!user) return;
-        const rolesRH = ['RH', 'ADMIN', 'ADMIN_RH', 'ABOGADA_SR'];
+        const rolesRH = ['RH', 'ADMIN', 'ADMIN_RH', 'CONTADOR_SR', 'ABOGADA_SR'];
         const isRH = rolesRH.includes(user.rol);
 
         const btnHeader = document.getElementById('btn-header-reportes');
@@ -122,7 +122,7 @@ class ReportesModule {
     openModal(preferredCategoryOrTemplateId = null) {
         const user = window.currentUser;
         if (!user) return;
-        const rolesRH = ['RH', 'ADMIN', 'ADMIN_RH', 'ABOGADA_SR'];
+        const rolesRH = ['RH', 'ADMIN', 'ADMIN_RH', 'CONTADOR_SR', 'ABOGADA_SR'];
         if (!rolesRH.includes(user.rol)) {
             alert('Acceso restringido: Solo Recursos Humanos y Dirección pueden exportar reportes.');
             return;
@@ -670,7 +670,7 @@ class ReportesModule {
         const fDesde = document.getElementById('reporte-fecha-desde')?.value || null;
         const fHasta = document.getElementById('reporte-fecha-hasta')?.value || null;
         const currentTemp = this.plantillas.find(p => p.id === this.currentTemplateId);
-        const reportTitle = currentTemp ? currentTemp.nombre : 'Reporte_Personalizado_RDL';
+        const reportTitle = currentTemp ? currentTemp.nombre : 'Reporte_Personalizado_FALCONT';
 
         try {
             const res = await fetch('/api/reportes/exportar', {

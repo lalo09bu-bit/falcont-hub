@@ -142,17 +142,18 @@ class DirectorioModule {
 
         const headerHtml = `
             <div class="search-dropdown-header">
-                <span>Directorio de Colaboradoras (${colaboradores.length})</span>
+                <span>Directorio de Colaboradores (${colaboradores.length})</span>
                 <span class="search-shortcut-hint">Usa ↑ ↓ y Enter para seleccionar</span>
             </div>
         `;
 
         const itemsHtml = colaboradores.map((c, idx) => {
             let roleClass = 'badge-jr';
-            let roleLabel = 'Abogada JR';
+            let roleLabel = 'Contador JR';
             if (c.rol === 'RH' || c.rol === 'ADMIN_RH') { roleClass = 'badge-rh'; roleLabel = 'RH'; }
             else if (c.rol === 'ADMIN') { roleClass = 'badge-admin'; roleLabel = 'Admin'; }
-            else if (c.rol === 'ABOGADA_SR') { roleClass = 'badge-sr'; roleLabel = 'Abogada SR'; }
+            else if (c.rol === 'CONTADOR_SR' || c.rol === 'ABOGADA_SR') { roleClass = 'badge-sr'; roleLabel = 'Contador SR'; }
+            else if (c.rol === 'CONTADOR_JR' || c.rol === 'ABOGADA_JR') { roleClass = 'badge-jr'; roleLabel = 'Contador JR'; }
 
             const avatarContent = c.foto_perfil 
                 ? `<img src="${c.foto_perfil}" alt="${c.nombre}" class="search-avatar-img">`

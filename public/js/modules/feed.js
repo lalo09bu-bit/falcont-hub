@@ -229,7 +229,7 @@ class FeedModule {
 
                 ${post.imagen_url ? `
                     <div class="post-image-container" onclick="feedMod.openLightbox('${post.imagen_url}')" title="Haz clic para ampliar la imagen">
-                        <img src="${post.imagen_url}" alt="${post.titulo || 'Comunicado RDL'}" class="post-feed-image" loading="lazy">
+                        <img src="${post.imagen_url}" alt="${post.titulo || 'Comunicado FALCONT'}" class="post-feed-image" loading="lazy">
                     </div>
                 ` : ''}
 
@@ -250,7 +250,7 @@ class FeedModule {
 
                     <!-- Caja para Escribir Comentario (Habilitada para TODOS los perfiles) -->
                     <form class="comment-input-form" onsubmit="feedMod.submitComentario(event, ${post.id})">
-                        <div class="comment-avatar-bubble">${window.currentUser && window.currentUser.nombre ? window.currentUser.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'RD'}</div>
+                        <div class="comment-avatar-bubble">${window.currentUser && window.currentUser.nombre ? window.currentUser.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'FL'}</div>
                         <div class="comment-field-wrapper">
                             <input 
                                 type="text" 
@@ -296,10 +296,10 @@ class FeedModule {
         const user = window.currentUser;
         if (!user) return;
 
-        // Validar permisos en frontend (Permitir RH, ADMIN_RH, ADMIN y ABOGADA_SR)
-        const isAuthorized = user.rol === 'ADMIN' || user.rol === 'ABOGADA_SR' || user.rol === 'RH' || user.rol === 'ADMIN_RH';
+        // Validar permisos en frontend (Permitir RH, ADMIN_RH, ADMIN y CONTADOR_SR)
+        const isAuthorized = user.rol === 'ADMIN' || user.rol === 'CONTADOR_SR' || user.rol === 'ABOGADA_SR' || user.rol === 'RH' || user.rol === 'ADMIN_RH';
         if (!isAuthorized) {
-            alert('Solo Recursos Humanos (RH), Dirección y Abogadas SR pueden publicar en el Muro.');
+            alert('Solo Recursos Humanos (RH), Dirección y Contadores SR pueden publicar en el Muro.');
             return;
         }
 
@@ -348,7 +348,7 @@ class FeedModule {
         } finally {
             if (submitBtn) {
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Publicar en el Muro RDL';
+                submitBtn.textContent = 'Publicar en el Muro FALCONT';
             }
         }
     }

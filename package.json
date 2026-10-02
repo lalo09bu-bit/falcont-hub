@@ -1,28 +1,24 @@
 {
-  "name": "rdl-intelligence-hub",
+  "name": "falcont-hub",
   "version": "1.0.0",
-  "description": "RDL Intelligence Hub - Plataforma Corporativa Interconectada (Astro + Neutralino.js + Inno Setup)",
+  "description": "FALCONT Despacho Contable - Portal Institucional de Talento y Operaciones",
   "type": "module",
   "scripts": {
     "dev": "astro dev",
     "start": "node server/server.js",
     "build": "astro build",
-    "postinstall": "astro build",
     "seed": "node server/scripts/seed-mock-data.js",
-    "preview": "astro preview",
-    "neu:start": "neu run",
-    "neu:build": "neu build"
+    "preview": "astro preview"
   },
   "keywords": [
-    "rdl-intelligence-hub",
+    "falcont",
+    "falcont-hub",
+    "despacho-contable",
     "astro",
-    "neutralino",
     "socket.io",
-    "sqlite3",
-    "floating-ui",
-    "inno-setup"
+    "sqlite3"
   ],
-  "author": "RDL Reclutamiento e Integración de Talento",
+  "author": "FALCONT Despacho Contable",
   "license": "MIT",
   "dependencies": {
     "@astrojs/node": "^8.3.0",

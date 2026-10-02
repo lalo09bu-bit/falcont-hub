@@ -1,5 +1,5 @@
 /**
- * RDL Intelligence Hub - Módulo Ficha del Empleado
+ * FALCONT HUB - Módulo Ficha del Empleado
  */
 
 class EmpleadoModule {
@@ -29,7 +29,7 @@ class EmpleadoModule {
         }
         if (nameEl) nameEl.textContent = user.nombre;
         if (puestoEl) puestoEl.textContent = user.puesto;
-        if (deptEl) deptEl.textContent = user.departamento || 'Departamento Legal RDL';
+        if (deptEl) deptEl.textContent = user.departamento || 'Despacho Contable FALCONT';
 
         // Saldo de Vacaciones
         const remVacEl = document.getElementById('emp-vacations-remaining');

@@ -232,7 +232,7 @@ class VacacionesModule {
 
             // Permisos de aprobación: Líder directo asignado o rol de Dirección/RH
             const isLeader = inc.lider_id && user.id === inc.lider_id;
-            const isPrivileged = ['RH', 'ADMIN', 'ADMIN_RH', 'ABOGADA_SR'].includes(user.rol);
+            const isPrivileged = ['RH', 'ADMIN', 'ADMIN_RH', 'CONTADOR_SR', 'ABOGADA_SR'].includes(user.rol);
             const canApprove = (isLeader || isPrivileged) && inc.estatus === 'PENDIENTE' && inc.usuario_id !== user.id;
 
             // Formato de Modalidad

@@ -1,24 +1,24 @@
 -- ============================================================
--- RDL Intelligence Hub - Esquema de Base de Datos SQLite
--- Plataforma Multi-Cliente Interconectada 100% RDL
+-- FALCONT Despacho Contable - Esquema de Base de Datos SQLite
+-- Portal Institucional de Gestión de Talento & Operaciones
 -- ============================================================
 
 PRAGMA foreign_keys = ON;
 
--- 1. TABLA DE USUARIOS Y ROLES (ADMINISTRADOR, ABOGADA SR, ABOGADA JR - FICHA ESTILO BUK)
+-- 1. TABLA DE USUARIOS Y ROLES (ADMIN, RH, CONTADOR SR, CONTADOR JR - FICHA ESTILO BUK)
 CREATE TABLE IF NOT EXISTS usuarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE NOT NULL,
     nombre TEXT NOT NULL,
-    rol TEXT CHECK(rol IN ('RH', 'ADMIN_RH', 'ADMIN', 'ABOGADA_SR', 'ABOGADA_JR')) NOT NULL DEFAULT 'ABOGADA_JR',
+    rol TEXT CHECK(rol IN ('RH', 'ADMIN_RH', 'ADMIN', 'CONTADOR_SR', 'CONTADOR_JR', 'ABOGADA_SR', 'ABOGADA_JR')) NOT NULL DEFAULT 'CONTADOR_JR',
     puesto TEXT NOT NULL,
-    departamento TEXT NOT NULL DEFAULT 'Legal & Talent',
+    departamento TEXT NOT NULL DEFAULT 'Fiscal & Contabilidad',
     avatar TEXT NOT NULL DEFAULT 'avatar-default.png',
     foto_perfil TEXT DEFAULT NULL,
-    telefono TEXT DEFAULT '+52 (55) 0000-0000',
+    telefono TEXT DEFAULT '+52 (55) 5500-0000',
     fecha_ingreso DATE DEFAULT '2026-01-15',
     tipo_contrato TEXT DEFAULT 'Tiempo Indeterminado',
-    numero_empleado TEXT DEFAULT 'RDL-001',
+    numero_empleado TEXT DEFAULT 'FLC-001',
     rfc TEXT UNIQUE,
     salario_base TEXT DEFAULT 'Confidencial',
     estatus_laboral TEXT CHECK(estatus_laboral IN ('ACTIVO', 'INACTIVO', 'LICENCIA')) NOT NULL DEFAULT 'ACTIVO',
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
     FOREIGN KEY (lider_id) REFERENCES usuarios(id) ON DELETE SET NULL
 );
 
--- 2. TABLA DE COMUNICACIÓN GENERAL / MURO ESTILO FACEBOOK
+-- 2. TABLA DE COMUNICACIÓN GENERAL / MURO CORPORATIVO
 CREATE TABLE IF NOT EXISTS feed_publicaciones (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     autor_id INTEGER NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS feed_publicaciones (
     autor_avatar TEXT NOT NULL,
     titulo TEXT,
     contenido TEXT NOT NULL,
-    categoria TEXT CHECK(categoria IN ('Corporativo', 'Aviso Legal', 'Integracion', 'Urgente', 'Reconocimiento')) NOT NULL DEFAULT 'Corporativo',
+    categoria TEXT CHECK(categoria IN ('Corporativo', 'Aviso Fiscal', 'Contabilidad', 'Auditoria', 'Aviso Legal', 'Integracion', 'Urgente', 'Reconocimiento')) NOT NULL DEFAULT 'Corporativo',
     imagen_url TEXT DEFAULT NULL,
     likes_count INTEGER NOT NULL DEFAULT 0,
     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS feed_likes (
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
--- 5. TABLA DE METAS Y OBJETIVOS DEL EMPLEADO (ESTILO BUK & METAS PONDERADAS 100%)
+-- 5. TABLA DE METAS Y OBJETIVOS PONDERADOS (100%)
 CREATE TABLE IF NOT EXISTS metas_empleado (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     usuario_id INTEGER NOT NULL,
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS metas_empleado (
     indicador TEXT NOT NULL DEFAULT 'Cumplimiento de objetivos',
     peso REAL NOT NULL DEFAULT 25.0,
     porcentaje_avance REAL NOT NULL DEFAULT 0.0,
-    categoria TEXT CHECK(categoria IN ('Caso Legal', 'Desempeño', 'Capacitación', 'OKR')) NOT NULL DEFAULT 'Caso Legal',
+    categoria TEXT CHECK(categoria IN ('Fiscal', 'Contabilidad', 'Auditoria', 'Nominas', 'Caso Legal', 'Desempeño', 'Capacitacion', 'OKR')) NOT NULL DEFAULT 'Fiscal',
     fecha_limite DATE NOT NULL DEFAULT '2026-12-31',
     estatus TEXT CHECK(estatus IN ('EN_PROGRESO', 'COMPLETADO', 'EN_RIESGO')) NOT NULL DEFAULT 'EN_PROGRESO',
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
@@ -154,4 +154,3 @@ CREATE INDEX IF NOT EXISTS idx_auth_tokens_hash ON auth_tokens(token_hash);
 CREATE INDEX IF NOT EXISTS idx_auth_tokens_usuario ON auth_tokens(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(usuario_id, leido);
 CREATE INDEX IF NOT EXISTS idx_reportes_categoria ON reportes_plantillas(categoria);
-

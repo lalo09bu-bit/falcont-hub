@@ -137,16 +137,17 @@ class PerfilModule {
 
         if (nameEl) nameEl.textContent = perfil.nombre;
         if (puestoEl) puestoEl.textContent = perfil.puesto;
-        if (deptEl) deptEl.textContent = perfil.departamento || 'Departamento Legal RDL';
-        if (numEmpEl) numEmpEl.textContent = perfil.numero_empleado ? `ID: ${perfil.numero_empleado}` : 'ID: RDL-000';
+        if (deptEl) deptEl.textContent = perfil.departamento || 'Despacho Contable FALCONT';
+        if (numEmpEl) numEmpEl.textContent = perfil.numero_empleado ? `ID: ${perfil.numero_empleado}` : 'ID: FLC-001';
 
         // Badge de Rol
         if (roleBadgeEl) {
             let roleClass = 'badge-jr';
-            let roleLabel = 'Abogada JR';
+            let roleLabel = 'Contador JR';
             if (perfil.rol === 'RH' || perfil.rol === 'ADMIN_RH') { roleClass = 'badge-rh'; roleLabel = 'Recursos Humanos (RH)'; }
             else if (perfil.rol === 'ADMIN') { roleClass = 'badge-admin'; roleLabel = 'Administrador'; }
-            else if (perfil.rol === 'ABOGADA_SR') { roleClass = 'badge-sr'; roleLabel = 'Abogada SR'; }
+            else if (perfil.rol === 'CONTADOR_SR' || perfil.rol === 'ABOGADA_SR') { roleClass = 'badge-sr'; roleLabel = 'Contador SR'; }
+            else if (perfil.rol === 'CONTADOR_JR' || perfil.rol === 'ABOGADA_JR') { roleClass = 'badge-jr'; roleLabel = 'Contador JR'; }
             roleBadgeEl.className = `role-badge ${roleClass}`;
             roleBadgeEl.textContent = roleLabel;
         }
@@ -180,7 +181,7 @@ class PerfilModule {
 
         // Visibilidad de controles para Administradores y RH
         const adminControls = document.querySelectorAll('.buk-admin-only');
-        const isSupervisor = window.currentUser && (window.currentUser.rol === 'ADMIN' || window.currentUser.rol === 'ABOGADA_SR' || window.currentUser.rol === 'RH' || window.currentUser.rol === 'ADMIN_RH');
+        const isSupervisor = window.currentUser && (window.currentUser.rol === 'ADMIN' || window.currentUser.rol === 'CONTADOR_SR' || window.currentUser.rol === 'ABOGADA_SR' || window.currentUser.rol === 'RH' || window.currentUser.rol === 'ADMIN_RH');
         adminControls.forEach(el => {
             if (isSupervisor) {
                 el.classList.remove('hidden');
@@ -223,11 +224,11 @@ class PerfilModule {
                 </div>
                 <div class="buk-detail-card">
                     <span class="buk-detail-label">🏢 Departamento</span>
-                    <span class="buk-detail-val">${perfil.departamento || 'Legal & Talent'}</span>
+                    <span class="buk-detail-val">${perfil.departamento || 'Contabilidad & Auditoría'}</span>
                 </div>
                 <div class="buk-detail-card">
                     <span class="buk-detail-label">🆔 No. de Empleado</span>
-                    <span class="buk-detail-val"><code>${perfil.numero_empleado || 'RDL-000'}</code></span>
+                    <span class="buk-detail-val"><code>${perfil.numero_empleado || 'FLC-001'}</code></span>
                 </div>
                 <div class="buk-detail-card">
                     <span class="buk-detail-label">🏛️ RFC</span>
@@ -323,7 +324,7 @@ class PerfilModule {
             return;
         }
 
-        const isSupervisor = window.currentUser && (window.currentUser.rol === 'ADMIN' || window.currentUser.rol === 'ABOGADA_SR' || window.currentUser.rol === 'RH' || window.currentUser.rol === 'ADMIN_RH');
+        const isSupervisor = window.currentUser && (window.currentUser.rol === 'ADMIN' || window.currentUser.rol === 'CONTADOR_SR' || window.currentUser.rol === 'ABOGADA_SR' || window.currentUser.rol === 'RH' || window.currentUser.rol === 'ADMIN_RH');
 
         metas.forEach(meta => {
             const item = document.createElement('div');
@@ -597,7 +598,7 @@ class PerfilModule {
 
         document.getElementById('edit-buk-nombre').value = p.nombre || '';
         document.getElementById('edit-buk-puesto').value = p.puesto || '';
-        document.getElementById('edit-buk-departamento').value = p.departamento || 'Departamento Legal RDL';
+        document.getElementById('edit-buk-departamento').value = p.departamento || 'Despacho Contable FALCONT';
         const rfcEl = document.getElementById('edit-buk-rfc');
         if (rfcEl) rfcEl.value = p.rfc || '';
         document.getElementById('edit-buk-telefono').value = p.telefono || '';

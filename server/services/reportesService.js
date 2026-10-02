@@ -238,10 +238,10 @@ export async function buildReportDataset(db, { campos = [], fecha_desde = null, 
                 const u = usuarios.find(usr => String(usr.id) === String(inc.usuario_id)) || {
                     id: inc.usuario_id,
                     nombre: inc.usuario_nombre || 'Colaborador',
-                    rol: inc.usuario_rol || 'ABOGADA_JR',
+                    rol: inc.usuario_rol || 'CONTADOR_JR',
                     rfc: 'No registrado',
-                    puesto: 'Abogada Junior',
-                    departamento: 'Legal'
+                    puesto: 'Auditor Junior',
+                    departamento: 'Fiscal & Contabilidad'
                 };
                 return buildRow(u, inc, null);
             });
@@ -256,7 +256,7 @@ export async function buildReportDataset(db, { campos = [], fecha_desde = null, 
                 const u = usuarios.find(usr => String(usr.id) === String(meta.usuario_id)) || {
                     id: meta.usuario_id,
                     nombre: 'Colaborador',
-                    rol: 'ABOGADA_JR'
+                    rol: 'CONTADOR_JR'
                 };
                 return buildRow(u, null, meta);
             });

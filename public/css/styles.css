@@ -1,10 +1,11 @@
 /* ============================================================
-   RDL INTELLIGENCE HUB - CORPORATE LIGHT SYSTEM DESIGN
-   Identidad Oficial RDL Abogados:
-   - Fondo: Blanco Corporativo / Slate Ultra-Claro (#ffffff / #f8fafc)
-   - Azul Marino Corporativo (Logo RDL): #0f2d4a
-   - Verde Pino / Deep Teal (Logo RDL): #136a60
-   - Colores Sólidos, Estilo Profesional Buk / Law Firm, Cero Neón
+   FALCONT DESPACHO CONTABLE - CORPORATE LIGHT SYSTEM DESIGN
+   Identidad Oficial FALCONT Despacho Contable:
+   - Fondo: Blanco Puro / Slate Suave (#ffffff / #f8fafc)
+   - Azul Acero Falcont (Alas del emblema): #55789B
+   - Azul Acero Oscuro / Navy: #2C4661
+   - Negro Carbón Institucional (Tipografía FALCONT): #231E1E
+   - Colores Sólidos, Estilo Profesional Buk / Accounting Firm
    ============================================================ */
 
 :root {
@@ -18,28 +19,41 @@
     /* Bordes y Divisiones */
     --border-light: #e2e8f0;
     --border-subtle: #cbd5e1;
-    --border-focus: #136a60;
+    --border-focus: #55789B;
 
-    /* Colores Oficiales del Logo RDL */
-    --rdl-navy: #0f2d4a;          /* Azul Marino (Letras RD, barra central) */
-    --rdl-navy-hover: #173e63;
-    --rdl-navy-dark: #091c2e;
-    --rdl-navy-light: #eef4f8;
+    /* Colores Oficiales FALCONT Despacho Contable */
+    --falcont-blue: #55789B;          /* Azul Acero Oficial (Alas del Logo) */
+    --falcont-blue-hover: #446587;
+    --falcont-blue-dark: #2C4661;
+    --falcont-blue-light: #F0F4F8;
+    --falcont-blue-border: #B8CADB;
 
-    --rdl-teal: #136a60;          /* Verde Pino / Teal (Letra L, puntos, ABOGADOS) */
-    --rdl-teal-hover: #0e524b;
-    --rdl-teal-light: #e6f3f1;
-    --rdl-teal-border: #99cfc8;
+    --falcont-charcoal: #231E1E;      /* Negro Carbón Oficial (Texto FALCONT) */
+    --falcont-charcoal-hover: #373030;
+    --falcont-charcoal-dark: #141111;
+    --falcont-charcoal-light: #F8FAFC;
+    --falcont-charcoal-border: #CBD5E1;
 
-    /* Colores de Estado Sólidos (Sin Neón) */
-    --color-success: #136a60;
-    --color-warning: #d97706;
-    --color-danger: #dc2626;
-    --color-info: #0284c7;
+    /* Mapeo universal para compatibilidad de componentes */
+    --rdl-navy: var(--falcont-charcoal);
+    --rdl-navy-hover: var(--falcont-charcoal-hover);
+    --rdl-navy-dark: var(--falcont-blue-dark);
+    --rdl-navy-light: var(--falcont-blue-light);
+
+    --rdl-teal: var(--falcont-blue);
+    --rdl-teal-hover: var(--falcont-blue-hover);
+    --rdl-teal-light: var(--falcont-blue-light);
+    --rdl-teal-border: var(--falcont-blue-border);
+
+    /* Colores de Estado Sólidos (Estilo Corporativo) */
+    --color-success: #10B981;
+    --color-warning: #D97706;
+    --color-danger: #DC2626;
+    --color-info: #55789B;
 
     /* Tipografía Corporativa de Alto Contraste */
-    --text-main: #0f172a;         /* Charcoal Slate muy oscuro */
-    --text-heading: #0f2d4a;      /* Navy corporativo */
+    --text-main: #231E1E;             /* Negro carbón corporativo */
+    --text-heading: #231E1E;          /* Negro carbón institucional */
     --text-muted: #475569;        /* Slate medio */
     --text-dim: #64748b;          /* Slate claro / captions */
 
@@ -1157,7 +1171,7 @@ body.rdl-theme {
 
 .buk-modal-header-banner {
     height: 84px;
-    background: linear-gradient(135deg, var(--rdl-navy) 0%, #173e63 60%, var(--rdl-teal) 100%);
+    background: linear-gradient(135deg, var(--falcont-charcoal) 0%, var(--falcont-blue-dark) 50%, var(--falcont-blue) 100%);
     position: relative;
     padding: 16px 20px;
     display: flex;

@@ -12,10 +12,12 @@ dist/
 .env.production
 
 # SQLite Databases & temporary journal files
+*.db
 *.db-wal
 *.db-shm
 *.db-journal
 adelta_client.db
+falcont_hub.db
 
 # Installer, large binaries and native artifacts
 bin/

@@ -113,7 +113,7 @@ const io = new Server(server, {
 app.get('/api/health', (req, res) => {
     res.json({
         status: 'OK',
-        app: 'RDL Intelligence Hub (Astro + Floating-UI Engine)',
+        app: 'FALCONT Despacho Contable - Portal Institucional',
         port: PORT,
         localIPs: getLocalIPs(),
         timestamp: new Date().toISOString()
@@ -398,7 +398,7 @@ app.post('/api/login', (req, res) => {
 app.get('/api/feed', (req, res) => {
     let usuarioId = req.query.usuario_id;
     if (!usuarioId) {
-        const token = (req.cookies && req.cookies.rdl_session) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+        const token = (req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session)) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
         if (token) {
             const decoded = verificarJwt(token);
             if (decoded) usuarioId = decoded.id;
@@ -422,8 +422,8 @@ app.get('/api/feed', (req, res) => {
 app.post('/api/feed', (req, res) => {
     const { autor_id, autor_nombre, autor_rol, autor_avatar, titulo, contenido, categoria, imagen_url } = req.body;
 
-    if (autor_rol !== 'ADMIN' && autor_rol !== 'ABOGADA_SR' && autor_rol !== 'RH' && autor_rol !== 'ADMIN_RH') {
-        return res.status(403).json({ error: 'Permisos insuficientes. Solo Administradores, Abogadas SR y Recursos Humanos pueden publicar.' });
+    if (autor_rol !== 'ADMIN' && autor_rol !== 'CONTADOR_SR' && autor_rol !== 'ABOGADA_SR' && autor_rol !== 'RH' && autor_rol !== 'ADMIN_RH') {
+        return res.status(403).json({ error: 'Permisos insuficientes. Solo Dirección, Gerencia y Recursos Humanos pueden publicar comunicados oficiales.' });
     }
 
     const stmt = db.prepare(`
@@ -451,7 +451,7 @@ app.post('/api/feed/:id/like', (req, res) => {
     let usuarioId = req.body && req.body.usuario_id;
 
     if (!usuarioId) {
-        const token = (req.cookies && req.cookies.rdl_session) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+        const token = (req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session)) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
         if (token) {
             const decoded = verificarJwt(token);
             if (decoded) usuarioId = decoded.id;
@@ -536,7 +536,7 @@ app.post('/api/feed/:id/comentarios', (req, res) => {
 
     // Si no vienen en el body, intentar obtener del token de sesión
     if (!userId) {
-        const token = (req.cookies && req.cookies.rdl_session) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+        const token = (req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session)) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
         if (token) {
             const decoded = verificarJwt(token);
             if (decoded) {
@@ -1008,7 +1008,7 @@ app.put('/api/incidencias/:id/aprobar', (req, res) => {
 app.get('/api/notificaciones', (req, res) => {
     let usuarioId = req.query.usuario_id;
     if (!usuarioId) {
-        const token = (req.cookies && req.cookies.rdl_session) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+        const token = (req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session)) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
         if (token) {
             const decoded = verificarJwt(token);
             if (decoded) usuarioId = decoded.id;
@@ -1043,7 +1043,7 @@ app.put('/api/notificaciones/:id/leer', (req, res) => {
 app.put('/api/notificaciones/marcar-todas', (req, res) => {
     let usuarioId = req.body && req.body.usuario_id;
     if (!usuarioId) {
-        const token = (req.cookies && req.cookies.rdl_session) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+        const token = (req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session)) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
         if (token) {
             const decoded = verificarJwt(token);
             if (decoded) usuarioId = decoded.id;
@@ -1067,7 +1067,7 @@ app.put('/api/notificaciones/marcar-todas', (req, res) => {
 // Middleware para validar que el usuario tenga rol de RH o Dirección
 function verificarAccesoRH(req, res, next) {
     const userRole = req.headers['x-user-role'] || req.query.user_role || (req.body && req.body.user_role);
-    const token = (req.cookies && req.cookies.rdl_session) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
+    const token = (req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session)) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
     
     let rol = userRole;
     if (token) {
@@ -1075,7 +1075,7 @@ function verificarAccesoRH(req, res, next) {
         if (decoded && decoded.rol) rol = decoded.rol;
     }
 
-    const rolesAutorizados = ['RH', 'ADMIN', 'ADMIN_RH', 'ABOGADA_SR'];
+    const rolesAutorizados = ['RH', 'ADMIN', 'ADMIN_RH', 'CONTADOR_SR', 'ABOGADA_SR'];
     if (rol && rolesAutorizados.includes(rol)) {
         return next();
     }
@@ -1185,10 +1185,10 @@ app.post('/api/reportes/exportar', verificarAccesoRH, async (req, res) => {
             fecha_hasta: fecha_hasta || null
         });
 
-        const safeTitle = (nombre_reporte || 'Reporte_RDL')
+        const safeTitle = (nombre_reporte || 'Reporte_FALCONT')
             .replace(/[^\w\s-]/gi, '')
             .trim()
-            .replace(/\s+/g, '_') || 'Reporte_RDL';
+            .replace(/\s+/g, '_') || 'Reporte_FALCONT';
         const dateSuffix = new Date().toISOString().split('T')[0];
         const filename = `${safeTitle}_${dateSuffix}`;
 
@@ -1198,7 +1198,7 @@ app.post('/api/reportes/exportar', verificarAccesoRH, async (req, res) => {
             res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
             return res.send(csvOutput);
         } else {
-            const xmlOutput = generateExcelXml(nombre_reporte || 'Reporte RDL', result.columns, result.rows);
+            const xmlOutput = generateExcelXml(nombre_reporte || 'Reporte FALCONT', result.columns, result.rows);
             res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
             res.setHeader('Content-Disposition', `attachment; filename="${filename}.xls"`);
             return res.send(xmlOutput);
@@ -1212,7 +1212,7 @@ app.post('/api/reportes/exportar', verificarAccesoRH, async (req, res) => {
 // Ruta para la pantalla de inicio de sesión
 app.get('/login', (req, res) => {
     // Si ya tiene sesión activa válida y no es una solicitud de cambio/error, redirigir al Hub
-    const token = req.cookies && req.cookies.rdl_session;
+    const token = req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session);
     const hasOverride = req.query.error || req.query.force === 'true';
 
     if (token && !hasOverride && verificarJwt(token)) {
@@ -1232,9 +1232,9 @@ app.get('/login', (req, res) => {
     return res.status(503).send(`
         <!DOCTYPE html>
         <html lang="es">
-        <head><meta charset="UTF-8"><title>RDL Intelligence Hub - Inicializando</title></head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center; padding: 60px 20px; background: #0f2d4a; color: #ffffff;">
-            <h2>RDL Intelligence Hub</h2>
+        <head><meta charset="UTF-8"><title>FALCONT Despacho Contable - Inicializando</title></head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center; padding: 60px 20px; background: #231E1E; color: #ffffff;">
+            <h2>FALCONT Despacho Contable</h2>
             <p>La pantalla de inicio de sesión se está compilando o no se encuentra en el servidor.</p>
             <p style="color: #94a3b8; font-size: 14px;">Ejecute <code>npm run build</code> en el servidor para generar los archivos estáticos.</p>
         </body>
@@ -1245,12 +1245,12 @@ app.get('/login', (req, res) => {
 // Protección de la ruta principal y SPA Fallback para Astro dist
 app.get('*', (req, res) => {
     // Rutas públicas y assets estáticos no interceptados
-    if (req.path.startsWith('/api/') || req.path.startsWith('/_astro/') || req.path.startsWith('/css/') || req.path.startsWith('/js/') || req.path === '/favicon.ico' || req.path === '/Logo RDL.png') {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/_astro/') || req.path.startsWith('/css/') || req.path.startsWith('/js/') || req.path.startsWith('/img/') || req.path === '/favicon.ico' || req.path.includes('Logo') || req.path.includes('logo')) {
         return res.status(404).json({ error: 'Recurso no encontrado' });
     }
 
-    // Comprobar cookie de sesión rdl_session, token en query o Bearer header
-    const cookieToken = req.cookies && req.cookies.rdl_session;
+    // Comprobar cookie de sesión falcont_session, token en query o Bearer header
+    const cookieToken = req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session);
     const queryToken = req.query && req.query.token;
     const authHeader = req.headers.authorization;
     const headerToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
@@ -1265,12 +1265,14 @@ app.get('*', (req, res) => {
     // Si el token provino de la URL o header y no estaba en cookie, establecer la cookie en la respuesta
     if ((queryToken || headerToken) && !cookieToken) {
         const isHttps = req.secure || (req.headers['x-forwarded-proto'] === 'https') || (process.env.NODE_ENV === 'production' && !req.headers.host?.includes(':'));
-        res.cookie('rdl_session', token, {
+        const cookieOpts = {
             httpOnly: true,
             secure: isHttps,
             sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000
-        });
+        };
+        res.cookie('falcont_session', token, cookieOpts);
+        res.cookie('rdl_session', token, cookieOpts);
     }
 
     const indexPath = path.join(distPath, 'index.html');
@@ -1281,9 +1283,9 @@ app.get('*', (req, res) => {
     return res.status(503).send(`
         <!DOCTYPE html>
         <html lang="es">
-        <head><meta charset="UTF-8"><title>RDL Intelligence Hub - Inicializando</title></head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center; padding: 60px 20px; background: #0f2d4a; color: #ffffff;">
-            <h2>RDL Intelligence Hub</h2>
+        <head><meta charset="UTF-8"><title>FALCONT Despacho Contable - Inicializando</title></head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center; padding: 60px 20px; background: #231E1E; color: #ffffff;">
+            <h2>FALCONT Despacho Contable</h2>
             <p>La aplicación se está inicializando.</p>
             <p style="color: #94a3b8; font-size: 14px;">Ejecute <code>npm run build</code> en el servidor para generar los archivos estáticos.</p>
         </body>
@@ -1298,7 +1300,7 @@ io.on('connection', (socket) => {
     socket.on('join_room', (user) => {
         if (user && user.id) {
             socket.join(`user_${user.id}`);
-            console.log(`👤 Usuario RDL [${user.nombre} - ${user.rol}] suscrito`);
+            console.log(`👤 Usuario FALCONT [${user.nombre} - ${user.rol}] suscrito`);
         }
     });
 
@@ -1311,7 +1313,7 @@ server.listen(PORT, '0.0.0.0', () => {
     const localIPs = getLocalIPs();
     console.log(`
 ========================================================================
-🚀 RDL INTELLIGENCE HUB (ASTRO + FLOATING-UI) - SERVIDOR ACTIVO
+🚀 FALCONT HUB (DESPACHO CONTABLE) - SERVIDOR ACTIVO
 🌐 Escuchando en 0.0.0.0:${PORT}
 📍 Direcciones IP Locales para conectar otras computadoras:
 ${localIPs.map(ip => `   -> http://${ip}:${PORT}`).join('\n')}

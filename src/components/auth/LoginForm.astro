@@ -4,12 +4,12 @@
 
 <div class="login-wrapper">
     <div class="login-card" id="login-card-container">
-        <!-- Encabezado con Logo RDL -->
+        <!-- Encabezado con Logo FALCONT -->
         <div class="login-header">
-            <div class="logo-circle">
-                <img src="/Logo RDL.png" alt="Logo RDL" class="login-logo" onerror="this.onerror=null; this.src='Logo RDL.png';" />
+            <div class="logo-circle" style="width: auto; height: 70px; padding: 6px 14px; border-radius: 12px;">
+                <img src="/Logo falcont.png" alt="Logo Falcont" class="login-logo" onerror="this.onerror=null; this.src='Logo falcont.png';" style="max-height: 58px; width: auto; object-fit: contain;" />
             </div>
-            <h1 class="login-title">RDL Intelligence Hub</h1>
+            <h1 class="login-title" style="color: #231E1E;">FALCONT Despacho Contable</h1>
             <p class="login-subtitle">Portal Institucional de Talento & Operaciones</p>
         </div>
 
@@ -28,10 +28,9 @@
         <!-- Insignia Corporativa de Dominios Autorizados -->
         <div class="domains-badge">
             <span class="badge-icon">🛡️</span>
-            <span>Acceso seguro exclusivo: <strong>@adeltaconsultores.com</strong> y <strong>@rdlabogados.com.mx</strong></span>
+            <span>Acceso exclusivo: <strong>@falcont.com.mx</strong>, <strong>@falcont.mx</strong> y <strong>@adeltaconsultores.com</strong></span>
         </div>
 
-        <!-- Selector de Pestañas: Iniciar Sesión vs Crear Perfil -->
         <!-- Selector de Pestañas: Iniciar Sesión vs Dar de Alta Perfil -->
         <div class="auth-tabs" id="auth-tabs-nav">
             <button type="button" class="auth-tab-btn active" id="tab-btn-login">
@@ -53,7 +52,7 @@
                         id="login-rfc" 
                         name="rfc" 
                         required 
-                        placeholder="Ej: COSR880101RDL" 
+                        placeholder="Ej: DEMO880101FLC" 
                         class="form-input" 
                         maxlength="13"
                         autocomplete="off"
@@ -72,15 +71,15 @@
                         id="email-input" 
                         name="email" 
                         required 
-                        placeholder="tu.nombre@adeltaconsultores.com" 
+                        placeholder="tu.nombre@falcont.com.mx" 
                         class="form-input" 
                         autocomplete="email"
                     />
                 </div>
-                <span class="form-hint">Ingreso directo a tu perfil corporativo. Sin contraseñas.</span>
+                <span class="form-hint">Ingreso directo a tu perfil corporativo contable. Sin contraseñas.</span>
             </div>
 
-            <button type="submit" id="btn-submit-magic" class="btn-primary-login">
+            <button type="submit" id="btn-submit-magic" class="btn-primary-login" style="background-color: #55789B;">
                 <span id="btn-text">🔑 Ingresar al Perfil</span>
                 <div id="btn-spinner" class="spinner hidden"></div>
             </button>
@@ -96,7 +95,7 @@
                         type="text" 
                         id="reg-rfc" 
                         required 
-                        placeholder="Ej: COSR880101RDL" 
+                        placeholder="Ej: DEMO880101FLC" 
                         class="form-input" 
                         maxlength="13"
                         autocomplete="off"
@@ -114,12 +113,12 @@
                         type="email" 
                         id="reg-email" 
                         required 
-                        placeholder="tu.nombre@adeltaconsultores.com" 
+                        placeholder="tu.nombre@falcont.com.mx" 
                         class="form-input" 
                         autocomplete="email"
                     />
                 </div>
-                <span class="form-hint">Debe pertenecer a @adeltaconsultores.com o @rdlabogados.com.mx</span>
+                <span class="form-hint">Debe pertenecer a @falcont.com.mx, @falcont.mx o @adeltaconsultores.com</span>
             </div>
 
             <div class="form-group">
@@ -130,7 +129,7 @@
                         type="text" 
                         id="reg-nombre" 
                         required 
-                        placeholder="Ej: Lic. Claudia Ruiz" 
+                        placeholder="Ej: C.P. Denis Ramos" 
                         class="form-input" 
                     />
                 </div>
@@ -143,7 +142,7 @@
                         type="text" 
                         id="reg-puesto" 
                         required 
-                        placeholder="Ej: Abogada Consultora" 
+                        placeholder="Ej: Auditor Fiscal / Contador Sr" 
                         class="form-input" 
                     />
                 </div>
@@ -153,7 +152,7 @@
                         type="text" 
                         id="reg-depto" 
                         required 
-                        placeholder="Ej: Legal / Consultoría" 
+                        placeholder="Ej: Fiscal & Auditoría" 
                         class="form-input" 
                     />
                 </div>
@@ -164,12 +163,12 @@
                 <input 
                     type="tel" 
                     id="reg-tel" 
-                    placeholder="+52 (55) 5482-9000" 
+                    placeholder="+52 (55) 5500-1234" 
                     class="form-input" 
                 />
             </div>
 
-            <button type="submit" id="btn-submit-register" class="btn-primary-login" style="background-color: #136a60;">
+            <button type="submit" id="btn-submit-register" class="btn-primary-login" style="background-color: #55789B;">
                 <span id="btn-reg-text">🚀 Dar de Alta Perfil e Ingresar</span>
                 <div id="btn-reg-spinner" class="spinner hidden"></div>
             </button>
@@ -177,7 +176,7 @@
 
         <!-- Pantalla de Éxito / Bienvenida al Ingresar -->
         <div id="magic-success-screen" class="success-screen hidden">
-            <div class="success-icon-wrap">
+            <div class="success-icon-wrap" style="background-color: #55789B;">
                 <span class="success-check">✓</span>
             </div>
             <h2 class="success-title" id="success-title">¡Acceso Correcto!</h2>
@@ -185,11 +184,11 @@
                 Conectando con el perfil de <strong id="sent-email-display">tu dirección institucional</strong>.
             </p>
             <div class="success-notice">
-                Iniciando sesión en tu espacio de trabajo...
+                Iniciando sesión en tu espacio de trabajo contable...
             </div>
 
             <div id="dev-direct-box" style="margin-bottom: 16px;">
-                <a id="btn-dev-direct-login" href="/" class="btn-primary-login" style="text-decoration: none; font-size: 13px; padding: 11px 16px; background-color: #136a60;">
+                <a id="btn-dev-direct-login" href="/" class="btn-primary-login" style="text-decoration: none; font-size: 13px; padding: 11px 16px; background-color: #55789B;">
                     🚀 Ingresar al Hub Ahora →
                 </a>
             </div>
@@ -199,46 +198,46 @@
             </button>
         </div>
 
-        <!-- Acceso Rápido de Prueba (1 Clic) para Evaluación en Azure VM / Render -->
+        <!-- Acceso Rápido de Prueba (1 Clic) para Evaluación en Render / Nube -->
         <div class="dev-mode-card" id="dev-quick-access-box" style="margin-top: 22px;">
             <div class="dev-mode-header">
-                <span class="dev-mode-badge">⚡ ACCESO RÁPIDO CORPORATIVO (1 CLIC)</span>
+                <span class="dev-mode-badge" style="background-color: #F0F4F8; color: #2C4661; border-color: #B8CADB;">⚡ ACCESO RÁPIDO CORPORATIVO (1 CLIC)</span>
                 <span class="dev-mode-subtitle">Haz clic para ingresar con las credenciales oficiales de prueba:</span>
             </div>
             
             <div class="dev-buttons-stack">
-                <a href="/api/auth/dev-login?email=demo@rdl.com.mx" class="btn-dev-login role-demo" title="Acceso total 360° para Auditoría y Evaluación de Clientes">
+                <a href="/api/auth/dev-login?email=demo@falcont.com.mx" class="btn-dev-login role-demo" title="Acceso total 360° para Auditoría y Evaluación de Clientes" style="border-color: #55789B; background: #F0F4F8;">
                     <span class="role-icon">⭐</span>
                     <div class="role-meta">
-                        <span class="role-name">Lic. Carlos Mendoza (Cliente Demo / Auditoría)</span>
-                        <span class="role-user">RFC: <strong>DEMO880101RDL</strong> • demo@rdl.com.mx</span>
+                        <span class="role-name" style="color: #231E1E;">C.P.C. Carlos Mendoza (Cliente Demo / Auditoría)</span>
+                        <span class="role-user">RFC: <strong>DEMO880101FLC</strong> • demo@falcont.com.mx</span>
                     </div>
-                    <span class="role-badge">Demo 360°</span>
+                    <span class="role-badge" style="background: #55789B; color: #ffffff;">Demo 360°</span>
                 </a>
 
-                <a href="/api/auth/dev-login?role=RH&rfc=COSR880101RDL" class="btn-dev-login role-rh" title="Acceso total a Dirección de Talento">
+                <a href="/api/auth/dev-login?role=RH&rfc=COSR880101FLC" class="btn-dev-login role-rh" title="Acceso total a Dirección de Talento">
                     <span class="role-icon">👑</span>
                     <div class="role-meta">
-                        <span class="role-name">Lic. Andrés Cosmes (RH / Admin)</span>
-                        <span class="role-user">RFC: <strong>COSR880101RDL</strong> • rh@rdl.com.mx</span>
+                        <span class="role-name">Lic. Andrés Cosmes (Dirección de Talento / RH)</span>
+                        <span class="role-user">RFC: <strong>COSR880101FLC</strong> • rh@falcont.com.mx</span>
                     </div>
                     <span class="role-badge">Admin</span>
                 </a>
 
-                <a href="/api/auth/dev-login?role=ABOGADA_SR&rfc=MEVR920514RDL" class="btn-dev-login role-sr" title="Supervisión legal y dictámenes">
-                    <span class="role-icon">⚖️</span>
+                <a href="/api/auth/dev-login?email=valeria.falcon@falcont.com.mx" class="btn-dev-login role-sr" title="Gerencia fiscal y auditoría">
+                    <span class="role-icon">📊</span>
                     <div class="role-meta">
-                        <span class="role-name">Lic. Valeria Mendoza (Abogada Sr)</span>
-                        <span class="role-user">RFC: <strong>MEVR920514RDL</strong> • abogada.sr@rdl.com.mx</span>
+                        <span class="role-name">C.P. Valeria Falcón (Gerente Fiscal & Auditoría)</span>
+                        <span class="role-user">RFC: <strong>FALV920514FL1</strong> • valeria.falcon@falcont.com.mx</span>
                     </div>
                     <span class="role-badge">Senior</span>
                 </a>
 
-                <a href="/api/auth/dev-login?role=ABOGADA_JR&rfc=MARA950820RDL" class="btn-dev-login role-jr" title="Avance de expedientes y metas">
+                <a href="/api/auth/dev-login?email=denis.ramos@falcont.com.mx" class="btn-dev-login role-jr" title="Analista contable y nóminas">
                     <span class="role-icon">💼</span>
                     <div class="role-meta">
-                        <span class="role-name">Lic. Ana Martínez (Abogada Jr)</span>
-                        <span class="role-user">RFC: <strong>MARA950820RDL</strong> • abogada.jr@rdl.com.mx</span>
+                        <span class="role-name">C.P. Denis Ramos (Analista de Nóminas & Seguridad Social)</span>
+                        <span class="role-user">RFC: <strong>RAMD940612FL2</strong> • denis.ramos@falcont.com.mx</span>
                     </div>
                     <span class="role-badge">Junior</span>
                 </a>
@@ -247,10 +246,10 @@
 
         <!-- Pie de tarjeta corporativo -->
         <div class="login-footer">
-            <span>RDL Abogados & Consultoría • Conexión Segura y Cifrada</span>
+            <span>FALCONT Despacho Contable • Conexión Segura y Cifrada</span>
             <div style="margin-top: 6px; font-size: 11px; opacity: 0.75;">
                 <span>Protección de Datos</span> • 
-                <a href="https://rdlabogados.com.mx/aviso-de-privacidad" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">Aviso de Privacidad</a>
+                <a href="#" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">Aviso de Privacidad</a>
             </div>
         </div>
     </div>
@@ -710,7 +709,7 @@
 <script is:inline>
 document.addEventListener('DOMContentLoaded', () => {
     // Dominios institucionales autorizados
-    const ALLOWED_DOMAINS = ['adeltaconsultores.com', 'adeltaconsultore.com', 'rdlabogados.com.mx', 'rdl.com.mx'];
+    const ALLOWED_DOMAINS = ['falcont.com.mx', 'falcont.mx', 'adeltaconsultores.com', 'adeltaconsultore.com', 'rdlabogados.com.mx', 'rdl.com.mx'];
 
     function isDomainAllowed(email) {
         if (!email || !email.includes('@')) return false;
@@ -772,6 +771,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (tokenParam) {
         // Token recibido en URL: guardar en localStorage y entrar al Hub de inmediato
         try {
+            localStorage.setItem('falcont_jwt', tokenParam);
             localStorage.setItem('rdl_jwt', tokenParam);
         } catch (e) {}
         window.location.replace('/');
@@ -835,7 +835,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isDomainAllowed(email)) {
                 errorBanner.classList.remove('hidden');
                 infoBanner.classList.add('hidden');
-                errorText.textContent = 'Acceso no autorizado. Solo se permiten correos institucionales de @adeltaconsultores.com y @rdlabogados.com.mx.';
+                errorText.textContent = 'Acceso no autorizado. Solo se permiten correos institucionales de @falcont.com.mx, @falcont.mx y @adeltaconsultores.com.';
                 return;
             }
 
@@ -862,12 +862,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Guardar JWT en almacenamiento local como respaldo ante cualquier bloqueo de cookies
                     if (data.token) {
                         try {
+                            localStorage.setItem('falcont_jwt', data.token);
                             localStorage.setItem('rdl_jwt', data.token);
                         } catch (e) {}
                     }
 
                     sentEmailDisplay.textContent = `${data.user ? data.user.nombre : email} (${rfc})`;
-                    successTitle.textContent = '¡Bienvenido(a) a RDL!';
+                    successTitle.textContent = '¡Bienvenido(a) a FALCONT HUB!';
                     formLogin.classList.add('hidden');
                     formRegister.classList.add('hidden');
                     document.getElementById('auth-tabs-nav')?.classList.add('hidden');
@@ -918,7 +919,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isDomainAllowed(email)) {
                 errorBanner.classList.remove('hidden');
                 infoBanner.classList.add('hidden');
-                errorText.textContent = 'Dominio no autorizado. Solo se permite el registro con cuentas @adeltaconsultores.com o @rdlabogados.com.mx.';
+                errorText.textContent = 'Dominio no autorizado. Solo se permite el registro con cuentas @falcont.com.mx, @falcont.mx o @adeltaconsultores.com.';
                 return;
             }
 
@@ -943,6 +944,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res.ok && data.success) {
                     if (data.token) {
                         try {
+                            localStorage.setItem('falcont_jwt', data.token);
                             localStorage.setItem('rdl_jwt', data.token);
                         } catch (e) {}
                     }

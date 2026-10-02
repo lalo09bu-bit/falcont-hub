@@ -1,12 +1,12 @@
 /**
- * RDL Intelligence Hub - Client WebSocket & Interconexión Engine
- * Conexión en tiempo real multi-computadora (Puerto 9060)
+ * FALCONT HUB - Client WebSocket & Interconexión Engine
+ * Conexión en tiempo real multi-computadora
  */
 
 class ClientSocketHandler {
     constructor() {
         this.socket = null;
-        const savedUrl = localStorage.getItem('rdl_server_ip');
+        const savedUrl = localStorage.getItem('falcont_server_ip') || localStorage.getItem('rdl_server_ip');
         if (savedUrl && (savedUrl.startsWith('http://') || savedUrl.startsWith('https://'))) {
             this.serverUrl = savedUrl;
         } else if (window.location.protocol === 'https:' || window.location.port === '' || window.location.port === '80' || window.location.port === '443') {
@@ -22,7 +22,7 @@ class ClientSocketHandler {
     }
 
     init() {
-        console.log(`🔌 Conectando a Nodo RDL: ${this.serverUrl}...`);
+        console.log(`🔌 Conectando a Nodo FALCONT: ${this.serverUrl}...`);
         
         if (typeof io !== 'undefined') {
             this.socket = io(this.serverUrl, {
@@ -39,7 +39,7 @@ class ClientSocketHandler {
     setupEventListeners() {
         this.socket.on('connect', () => {
             this.isConnected = true;
-            console.log(`✅ Conectado a Red RDL con ID: ${this.socket.id}`);
+            console.log(`✅ Conectado a Red FALCONT con ID: ${this.socket.id}`);
             this.updateNetworkStatus(true);
             
             // Unir usuario activo al canal
@@ -50,13 +50,13 @@ class ClientSocketHandler {
 
         this.socket.on('disconnect', () => {
             this.isConnected = false;
-            console.warn('⚠️ Desconectado de Red RDL.');
+            console.warn('⚠️ Desconectado de Red FALCONT.');
             this.updateNetworkStatus(false);
         });
 
-        // 1. Nuevo Post en Muro Facebook
+        // 1. Nuevo Post en Muro
         this.socket.on('feed:nuevo_post', (post) => {
-            console.log('📢 Real-time: Nueva publicación en el Muro RDL', post);
+            console.log('📢 Real-time: Nueva publicación en el Muro FALCONT', post);
             window.dispatchEvent(new CustomEvent('rdl_nuevo_post', { detail: post }));
             this.showToast(`📢 Nuevo Comunicado: ${post.titulo || post.autor_nombre}`, 'info');
         });

@@ -1,11 +1,11 @@
 import { verificarJwt } from '../services/auth.service.js';
 
 /**
- * Middleware para verificar la sesión activa mediante la cookie `rdl_session` o encabezado Bearer.
+ * Middleware para verificar la sesión activa mediante la cookie `falcont_session` o `rdl_session` o Bearer.
  */
 export function verificarSesion(req, res, next) {
     // 1. Extraer token de cookies o header Authorization
-    const cookieToken = req.cookies && req.cookies.rdl_session;
+    const cookieToken = req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session);
     const authHeader = req.headers.authorization;
     let token = cookieToken;
 
@@ -28,12 +28,14 @@ export function verificarSesion(req, res, next) {
     const decoded = verificarJwt(token);
 
     if (!decoded) {
-        // Limpiar cookie corrupta o expirada con las mismas opciones que la creación
-        res.clearCookie('rdl_session', {
+        // Limpiar cookies corruptas o expiradas
+        const clearOpts = {
             httpOnly: true,
             sameSite: 'lax',
             secure: process.env.NODE_ENV === 'production'
-        });
+        };
+        res.clearCookie('falcont_session', clearOpts);
+        res.clearCookie('rdl_session', clearOpts);
 
         if (req.originalUrl.startsWith('/api/') || (req.headers.accept && req.headers.accept.includes('application/json'))) {
             return res.status(401).json({

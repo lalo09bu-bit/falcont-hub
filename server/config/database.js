@@ -8,7 +8,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const schemaPath = path.join(__dirname, '..', 'db', 'schema.sql');
-const backupPath = path.join(__dirname, '..', 'db', 'backup_data.json');
 
 // Normalizar registros para que BigInt se convierta a Number (evita errores en JSON.stringify de Express)
 function normalizeRow(row) {
@@ -146,7 +145,7 @@ if (isTurso) {
     db = new TursoAdapter(client);
     initDatabase();
 } else {
-    const defaultDbPath = path.join(__dirname, '..', '..', 'rdl_intelligence_hub.db');
+    const defaultDbPath = path.join(__dirname, '..', '..', 'falcont_hub.db');
     const dbPath = process.env.DATABASE_PATH || defaultDbPath;
 
     const dbDir = path.dirname(dbPath);
@@ -181,17 +180,17 @@ function initDatabase() {
         const schemaSql = fs.readFileSync(schemaPath, 'utf8');
         db.exec(schemaSql, (err) => {
             if (err) {
-                console.warn('⚠️ Aviso al aplicar esquema RDL inicial (se continuará con migraciones):', err.message);
+                console.warn('⚠️ Aviso al aplicar esquema inicial (se continuará con migraciones):', err.message);
             } else {
-                console.log('✅ Esquema RDL Intelligence Hub verificado/creado');
+                console.log('✅ Esquema FALCONT Despacho Contable verificado/creado');
             }
             runMigrations();
-            seedRdlData();
+            seedFalcontData();
             seedDummyClientUser();
         });
     } else {
         runMigrations();
-        seedRdlData();
+        seedFalcontData();
         seedDummyClientUser();
     }
 }
@@ -216,105 +215,51 @@ function runMigrations() {
         }
     });
 
-    // 2. Migración para usuarios (Ficha estilo Buk: foto_perfil, telefono, fecha_ingreso, tipo_contrato, numero_empleado, salario_base, estatus_laboral)
+    // 2. Migración para usuarios (Ficha estilo Buk)
     db.all("PRAGMA table_info(usuarios)", [], (err, columns) => {
         if (!err && columns && columns.length > 0) {
             const colNames = columns.map(c => c.name);
 
             if (!colNames.includes('foto_perfil')) {
-                db.run("ALTER TABLE usuarios ADD COLUMN foto_perfil TEXT DEFAULT NULL", () => {
-                    console.log("✅ Columna 'foto_perfil' agregada a usuarios.");
-                });
+                db.run("ALTER TABLE usuarios ADD COLUMN foto_perfil TEXT DEFAULT NULL", () => {});
             }
             if (!colNames.includes('telefono')) {
-                db.run("ALTER TABLE usuarios ADD COLUMN telefono TEXT DEFAULT '+52 (55) 5482-9000'", () => {
-                    console.log("✅ Columna 'telefono' agregada a usuarios.");
-                });
+                db.run("ALTER TABLE usuarios ADD COLUMN telefono TEXT DEFAULT '+52 (55) 5500-0000'", () => {});
             }
             if (!colNames.includes('fecha_ingreso')) {
-                db.run("ALTER TABLE usuarios ADD COLUMN fecha_ingreso DATE DEFAULT '2026-01-15'", () => {
-                    console.log("✅ Columna 'fecha_ingreso' agregada a usuarios.");
-                });
+                db.run("ALTER TABLE usuarios ADD COLUMN fecha_ingreso DATE DEFAULT '2026-01-15'", () => {});
             }
             if (!colNames.includes('tipo_contrato')) {
-                db.run("ALTER TABLE usuarios ADD COLUMN tipo_contrato TEXT DEFAULT 'Tiempo Indeterminado'", () => {
-                    console.log("✅ Columna 'tipo_contrato' agregada a usuarios.");
-                });
+                db.run("ALTER TABLE usuarios ADD COLUMN tipo_contrato TEXT DEFAULT 'Tiempo Indeterminado'", () => {});
             }
             if (!colNames.includes('numero_empleado')) {
-                db.run("ALTER TABLE usuarios ADD COLUMN numero_empleado TEXT DEFAULT 'RDL-001'", () => {
-                    console.log("✅ Columna 'numero_empleado' agregada a usuarios.");
-                });
+                db.run("ALTER TABLE usuarios ADD COLUMN numero_empleado TEXT DEFAULT 'FLC-001'", () => {});
             }
             if (!colNames.includes('salario_base')) {
-                db.run("ALTER TABLE usuarios ADD COLUMN salario_base TEXT DEFAULT 'Confidencial'", () => {
-                    console.log("✅ Columna 'salario_base' agregada a usuarios.");
-                });
+                db.run("ALTER TABLE usuarios ADD COLUMN salario_base TEXT DEFAULT 'Confidencial'", () => {});
             }
             if (!colNames.includes('estatus_laboral')) {
-                db.run("ALTER TABLE usuarios ADD COLUMN estatus_laboral TEXT DEFAULT 'ACTIVO'", () => {
-                    console.log("✅ Columna 'estatus_laboral' agregada a usuarios.");
-                });
+                db.run("ALTER TABLE usuarios ADD COLUMN estatus_laboral TEXT DEFAULT 'ACTIVO'", () => {});
             }
-            const applyDefaultRfcs = () => {
-                const defaultRfcs = [
-                    { email: 'rh@rdl.com.mx', rfc: 'COSR880101RDL' },
-                    { email: 'admin@rdl.com.mx', rfc: 'RAMS850310RDL' },
-                    { email: 'sofia.ramirez@rdl.com.mx', rfc: 'RAMS850310RDL' },
-                    { email: 'abogada.sr@rdl.com.mx', rfc: 'MEVR920514RDL' },
-                    { email: 'valeria.mendoza@rdl.com.mx', rfc: 'MEVR920514RDL' },
-                    { email: 'abogada.jr@rdl.com.mx', rfc: 'MARA950820RDL' },
-                    { email: 'ana.martinez@rdl.com.mx', rfc: 'MARA950820RDL' },
-                    { email: 'mariana.torres@rdl.com.mx', rfc: 'TOMA960412RDL' },
-                    { email: 'patricia.silva@adeltaconsultores.com', rfc: 'SIP901105AD1' },
-                    { email: 'fernando.ortiz@rdlabogados.com.mx', rfc: 'OIF890723RD2' },
-                    { email: 'analista.rh04@adeltaconsultores.com', rfc: 'COSR880101AD3' },
-                    { email: 'denis@rdl.com.mx', rfc: 'RAMD940612RD1' },
-                    { email: 'demo@rdl.com.mx', rfc: 'DEMO880101RDL' }
-                ];
-                defaultRfcs.forEach(item => {
-                    db.run("UPDATE usuarios SET rfc = ? WHERE LOWER(email) = LOWER(?) AND (rfc IS NULL OR rfc = '')", [item.rfc, item.email]);
-                });
-            };
 
             if (!colNames.includes('rfc')) {
                 db.run("ALTER TABLE usuarios ADD COLUMN rfc TEXT DEFAULT NULL", (alterErr) => {
                     if (!alterErr) {
-                        console.log("✅ Columna 'rfc' agregada a usuarios.");
                         db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_rfc ON usuarios(rfc) WHERE rfc IS NOT NULL;");
                         db.run("CREATE INDEX IF NOT EXISTS idx_usuarios_rfc_email ON usuarios(rfc, email);");
-                        applyDefaultRfcs();
                     }
                 });
-            } else {
-                applyDefaultRfcs();
             }
 
             if (!colNames.includes('lider_id')) {
                 db.run("ALTER TABLE usuarios ADD COLUMN lider_id INTEGER DEFAULT NULL", (alterErr) => {
                     if (!alterErr) {
-                        console.log("✅ Columna 'lider_id' agregada a usuarios.");
                         db.run("CREATE INDEX IF NOT EXISTS idx_usuarios_lider ON usuarios(lider_id);");
                     }
                 });
             }
 
-            // 3. Garantizar perfil de Recursos Humanos (RH) con acceso total
-            db.get("SELECT id FROM usuarios WHERE rol = 'RH' OR email = 'rh@rdl.com.mx'", [], (err, rhUser) => {
-                if (!err && !rhUser) {
-                    console.log("🌱 Creando perfil de Dirección de Recursos Humanos (RH)...");
-                    db.run(`
-                        INSERT OR IGNORE INTO usuarios (email, nombre, rol, puesto, departamento, avatar, telefono, fecha_ingreso, tipo_contrato, numero_empleado, rfc, dias_vacaciones_totales, dias_vacaciones_tomados)
-                        VALUES ('rh@rdl.com.mx', 'Lic. Andrés Cosmes', 'RH', 'Dirección de Recursos Humanos & Talento', 'Recursos Humanos', 'AC', '+52 (55) 5482-9000', '2023-01-01', 'Tiempo Indeterminado', 'RDL-RH01', 'COSR880101RDL', 25, 0)
-                    `, function(err) {
-                        if (!err) {
-                            console.log("✅ Perfil de Recursos Humanos (RH) registrado con ID:", this.lastID);
-                        }
-                    });
-                }
-            });
-
-            // 4. Migración para auth_tokens (Magic Links de Autenticación RDL)
+            // 3. Tablas relacionales complementarias
             db.run(`
                 CREATE TABLE IF NOT EXISTS auth_tokens (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -325,47 +270,11 @@ function runMigrations() {
                     creado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
                 );
-            `, (err) => {
-                if (!err) {
-                    db.run("CREATE INDEX IF NOT EXISTS idx_auth_tokens_hash ON auth_tokens(token_hash);");
-                    db.run("CREATE INDEX IF NOT EXISTS idx_auth_tokens_usuario ON auth_tokens(usuario_id);");
-                    console.log("✅ Tabla 'auth_tokens' e índices verificados/creados.");
-                }
+            `, () => {
+                db.run("CREATE INDEX IF NOT EXISTS idx_auth_tokens_hash ON auth_tokens(token_hash);");
+                db.run("CREATE INDEX IF NOT EXISTS idx_auth_tokens_usuario ON auth_tokens(usuario_id);");
             });
 
-            // 5. Migración para incidencias_vacaciones (Modalidades de Ausencias: Permisos x hora/día y líder)
-            db.all("PRAGMA table_info(incidencias_vacaciones)", [], (incErr, incColumns) => {
-                if (!incErr && incColumns && incColumns.length > 0) {
-                    const incColNames = incColumns.map(c => c.name);
-                    if (!incColNames.includes('lider_id')) {
-                        db.run("ALTER TABLE incidencias_vacaciones ADD COLUMN lider_id INTEGER DEFAULT NULL", () => {
-                            console.log("✅ Columna 'lider_id' agregada a incidencias_vacaciones.");
-                        });
-                    }
-                    if (!incColNames.includes('subtipo')) {
-                        db.run("ALTER TABLE incidencias_vacaciones ADD COLUMN subtipo TEXT DEFAULT 'VACACIONES'", () => {
-                            console.log("✅ Columna 'subtipo' agregada a incidencias_vacaciones.");
-                        });
-                    }
-                    if (!incColNames.includes('hora_inicio')) {
-                        db.run("ALTER TABLE incidencias_vacaciones ADD COLUMN hora_inicio TEXT DEFAULT NULL", () => {
-                            console.log("✅ Columna 'hora_inicio' agregada a incidencias_vacaciones.");
-                        });
-                    }
-                    if (!incColNames.includes('hora_fin')) {
-                        db.run("ALTER TABLE incidencias_vacaciones ADD COLUMN hora_fin TEXT DEFAULT NULL", () => {
-                            console.log("✅ Columna 'hora_fin' agregada a incidencias_vacaciones.");
-                        });
-                    }
-                    if (!incColNames.includes('horas_solicitadas')) {
-                        db.run("ALTER TABLE incidencias_vacaciones ADD COLUMN horas_solicitadas REAL DEFAULT 0", () => {
-                            console.log("✅ Columna 'horas_solicitadas' agregada a incidencias_vacaciones.");
-                        });
-                    }
-                }
-            });
-
-            // 6. Migración para tabla de notificaciones
             db.run(`
                 CREATE TABLE IF NOT EXISTS notificaciones (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -381,14 +290,10 @@ function runMigrations() {
                     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
                 );
-            `, (err) => {
-                if (!err) {
-                    db.run("CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(usuario_id, leido);");
-                    console.log("✅ Tabla 'notificaciones' e índices verificados/creados.");
-                }
+            `, () => {
+                db.run("CREATE INDEX IF NOT EXISTS idx_notificaciones_usuario ON notificaciones(usuario_id, leido);");
             });
 
-            // 7. Migración para tabla feed_likes (Control estricto de 1 like por usuario)
             db.run(`
                 CREATE TABLE IF NOT EXISTS feed_likes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -399,14 +304,8 @@ function runMigrations() {
                     FOREIGN KEY (publicacion_id) REFERENCES feed_publicaciones(id) ON DELETE CASCADE,
                     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
                 );
-            `, (err) => {
-                if (!err) {
-                    db.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_feed_likes_pub_user ON feed_likes(publicacion_id, usuario_id);");
-                    console.log("✅ Tabla 'feed_likes' verificada/creada.");
-                }
-            });
+            `);
 
-            // 8. Migración para tabla de plantillas y estructuras de reportes (reportes_plantillas)
             db.run(`
                 CREATE TABLE IF NOT EXISTS reportes_plantillas (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -418,46 +317,61 @@ function runMigrations() {
                     es_sistema INTEGER DEFAULT 0,
                     fecha_creacion DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
-            `, (err) => {
-                if (!err) {
-                    db.run("CREATE INDEX IF NOT EXISTS idx_reportes_categoria ON reportes_plantillas(categoria);");
-                    console.log("✅ Tabla 'reportes_plantillas' e índices verificados/creados.");
-                    seedReportesPlantillas();
-                }
+            `, () => {
+                seedReportesPlantillas();
             });
         }
     });
 }
 
-function seedRdlData() {
+function seedFalcontData() {
     db.get('SELECT COUNT(*) as count FROM usuarios', [], (err, row) => {
         if (!err && row && row.count === 0) {
-            console.log('🌱 Poblando usuarios iniciales con Ficha Buk (RH, Admin, Abogada SR, Abogada JR)...');
+            console.log('🌱 Poblando equipo contable inicial de FALCONT...');
 
             const insertUser = db.prepare(`
-                INSERT INTO usuarios (email, nombre, rol, puesto, departamento, avatar, telefono, fecha_ingreso, tipo_contrato, numero_empleado, rfc, dias_vacaciones_totales, dias_vacaciones_tomados)
+                INSERT OR IGNORE INTO usuarios (email, nombre, rol, puesto, departamento, avatar, telefono, fecha_ingreso, tipo_contrato, numero_empleado, rfc, dias_vacaciones_totales, dias_vacaciones_tomados)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
+            // 1. Cliente Demo / Socio Director
             insertUser.run(
-                'rh@rdl.com.mx', 'Lic. Andrés Cosmes', 'RH', 'Dirección de Recursos Humanos & Talento',
-                'Recursos Humanos', 'AC', '+52 (55) 5482-9000', '2023-01-01', 'Tiempo Indeterminado', 'RDL-RH01', 'COSR880101RDL', 25, 0
+                'demo@falcont.com.mx', 'C.P.C. Carlos Mendoza (Cliente Demo)', 'ADMIN', 'Socio Director & Auditoría',
+                'Dirección General & Auditoría', 'CM', '+52 (55) 5500-9099', '2023-01-15', 'Tiempo Indeterminado', 'FLC-DEMO', 'DEMO880101FLC', 20, 4
             );
+
+            // 2. Dirección de Talento / RH
             insertUser.run(
-                'admin@rdl.com.mx', 'Lic. Sofia Ramirez', 'ADMIN', 'Directora de Talent & Legal',
-                'Dirección General', 'SR', '+52 (55) 5482-9001', '2023-03-01', 'Tiempo Indeterminado', 'RDL-001', 'RAMS850310RDL', 20, 5
+                'rh@falcont.com.mx', 'Lic. Andrés Cosmes', 'RH', 'Dirección de Recursos Humanos & Talento',
+                'Recursos Humanos', 'AC', '+52 (55) 5500-9000', '2023-01-01', 'Tiempo Indeterminado', 'FLC-RH01', 'COSR880101FLC', 25, 0
             );
+
+            // 3. Gerente Fiscal & Auditoría (Senior)
             insertUser.run(
-                'abogada.sr@rdl.com.mx', 'Lic. Valeria Mendoza', 'ABOGADA_SR', 'Abogada Senior Corporativo',
-                'Legal & Talent RDL', 'VM', '+52 (55) 5482-9002', '2024-06-15', 'Tiempo Indeterminado', 'RDL-014', 'MEVR920514RDL', 15, 3
+                'valeria.falcon@falcont.com.mx', 'C.P. Valeria Falcón', 'CONTADOR_SR', 'Gerente Fiscal & Auditoría',
+                'Fiscal & Auditoría', 'VF', '+52 (55) 5500-9002', '2024-06-15', 'Tiempo Indeterminado', 'FLC-014', 'FALV920514FL1', 15, 3
             );
+
+            // 4. Analista de Nóminas & Seguridad Social (Junior)
             insertUser.run(
-                'abogada.jr@rdl.com.mx', 'Lic. Ana Martinez', 'ABOGADA_JR', 'Abogada Junior de Litigio',
-                'Legal & Talent RDL', 'AM', '+52 (55) 5482-9003', '2025-01-10', 'Tiempo Indeterminado', 'RDL-028', 'MARA950820RDL', 12, 2
+                'denis.ramos@falcont.com.mx', 'C.P. Denis Ramos', 'CONTADOR_JR', 'Analista de Nóminas & Seguridad Social',
+                'Nóminas & IMSS', 'DR', '+52 (55) 5500-9010', '2025-02-01', 'Tiempo Indeterminado', 'FLC-028', 'RAMD940612FL2', 12, 2
+            );
+
+            // 5. Auxiliar Contable & Conciliaciones (Junior)
+            insertUser.run(
+                'ana.martinez@falcont.com.mx', 'C.P. Ana Martínez', 'CONTADOR_JR', 'Auxiliar Contable & Conciliaciones',
+                'Contabilidad General', 'AM', '+52 (55) 5500-9003', '2025-01-10', 'Tiempo Indeterminado', 'FLC-035', 'MARA950820FL3', 12, 1
+            );
+
+            // 6. Consultora de Talento Externa (Adelta)
+            insertUser.run(
+                'patricia.silva@adeltaconsultores.com', 'Lic. Patricia Silva', 'RH', 'Consultora de Talento & Auditoría Externa',
+                'Auditoría & Consultoría Externa', 'PS', '+52 (55) 5500-9080', '2024-01-01', 'Tiempo Indeterminado', 'AD-007', 'SIP901105AD1', 20, 2
             );
 
             insertUser.finalize(() => {
-                console.log('✅ Usuarios RDL registrados con ficha Buk y RFC.');
+                console.log('✅ Equipo contable de FALCONT registrado con éxito.');
                 seedFeedAndMetas();
             });
         } else {
@@ -469,7 +383,7 @@ function seedRdlData() {
 function seedFeedAndMetas() {
     db.get('SELECT COUNT(*) as count FROM feed_publicaciones', [], (err, row) => {
         if (!err && row && row.count === 0) {
-            console.log('📢 Generando publicaciones iniciales para el Muro estilo Facebook RDL...');
+            console.log('📢 Generando comunicados contables y fiscales para el Muro FALCONT...');
             
             const insertFeed = db.prepare(`
                 INSERT INTO feed_publicaciones (autor_id, autor_nombre, autor_rol, autor_avatar, titulo, contenido, categoria, likes_count)
@@ -477,17 +391,24 @@ function seedFeedAndMetas() {
             `);
 
             insertFeed.run(
-                1, 'Lic. Sofia Ramirez', 'ADMIN', 'SR',
-                '¡Bienvenidas a RDL Intelligence Hub!',
-                'Iniciamos oficialmente operaciones en nuestro nuevo portal de talento. Aquí compartiremos comunicados oficiales, avisos legales, seguimiento de casos, metas ponderadas (100%), directorio de colaboradores y control de vacaciones y permisos.',
-                'Corporativo', 5
+                1, 'C.P.C. Carlos Mendoza', 'ADMIN', 'CM',
+                '¡Bienvenidos a FALCONT Hub - Despacho Contable!',
+                'Iniciamos oficialmente operaciones en nuestro nuevo portal institucional. Aquí compartiremos comunicados fiscales, avisos de Miscelánea Fiscal SAT, seguimiento de metas ponderadas (100%), directorio de colaboradores y control de vacaciones e incidencias.',
+                'Corporativo', 6
             );
 
             insertFeed.run(
-                2, 'Lic. Valeria Mendoza', 'ABOGADA_SR', 'VM',
-                'Actualización de Criterios de Contratación Q3 2026',
-                'Equipo Legal: hemos actualizado la plantilla estándar de contratos para clientes corporativos. Por favor revisen la documentación compartida.',
-                'Aviso Legal', 3
+                3, 'C.P. Valeria Falcón', 'CONTADOR_SR', 'VF',
+                'Calendario Fiscal y Cierre Mensual Octubre 2026',
+                'Recordatorio para todo el equipo contable: El próximo 17 es la fecha límite para la presentación de pagos provisionales de ISR e IVA, así como el envío de la DIOT y balanzas de comprobación. Por favor conciliar timbrados CFDI 4.0 con anticipación.',
+                'Aviso Fiscal', 4
+            );
+
+            insertFeed.run(
+                4, 'C.P. Denis Ramos', 'CONTADOR_JR', 'DR',
+                'Actualización de Factores de Descuento INFONAVIT & SUA',
+                'Se han cargado las tablas de amortización y factores de descuento actualizados para la segunda quincena. Favor de revisar incidencias y pre-nóminas en el sistema contable.',
+                'Contabilidad', 3
             );
 
             insertFeed.finalize();
@@ -503,64 +424,64 @@ function seedFeedAndMetas() {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
 
-            // Metas para Abogada JR (Ana Martinez - ID 3) - Total Pesos: 40% + 35% + 25% = 100%
+            // Metas para Analista de Nóminas (Denis Ramos - ID 4) - Suma: 40% + 35% + 25% = 100%
             insertMeta.run(
-                3,
-                'Revisión y Dictamen de Expedientes',
-                'Revisión exhaustiva y dictaminación jurídica de expedientes laborales de nuevo ingreso.',
-                '15 expedientes dictaminados por semana (≥95% efectividad)',
+                4,
+                'Procesamiento y Timbrado de Nóminas CFDI 4.0',
+                'Revisión, cálculo y timbrado oportuno de nóminas quincenales y asimilados a salarios.',
+                '100% de recibos timbrados en tiempo sin inconsistencias en el SAT',
                 40.0,
                 85.0,
-                'Caso Legal',
-                '2026-09-30',
-                'EN_PROGRESO'
-            );
-
-            insertMeta.run(
-                3,
-                'Cumplimiento y Asistencia a Audiencias',
-                'Representación en audiencias conciliatorias y desahogo de pruebas laborales.',
-                '100% de audiencias atendidas puntualmente sin diferimientos',
-                35.0,
-                70.0,
-                'Desempeño',
-                '2026-10-15',
-                'EN_PROGRESO'
-            );
-
-            insertMeta.run(
-                3,
-                'Certificación en RDL Compliance Normativo',
-                'Completar los módulos y acreditaciones en la Ley Federal del Trabajo y NOM-035.',
-                'Calificación mínima de 9.0 en evaluación final',
-                25.0,
-                90.0,
-                'Capacitación',
-                '2026-09-15',
-                'EN_PROGRESO'
-            );
-
-            // Metas para Abogada SR (Valeria Mendoza - ID 2) - Total Pesos: 50% + 50% = 100%
-            insertMeta.run(
-                2,
-                'Supervisión y Dictámenes Corporativos',
-                'Validación y cierre de contratos mercantiles y acuerdos de confidencialidad.',
-                'Cierre de 20 dictámenes corporativos al mes',
-                50.0,
-                80.0,
-                'Caso Legal',
+                'Nominas',
                 '2026-10-31',
                 'EN_PROGRESO'
             );
 
             insertMeta.run(
-                2,
-                'Mentoría y Formación de Equipo Legal Junior',
-                'Sesiones quincenales de capacitación y asesoría en litigio para abogadas junior.',
-                '4 sesiones completadas con evaluación de satisfacción ≥ 9.5',
+                4,
+                'Determinación de Cuotas Obrero-Patronales IMSS/SUA',
+                'Cálculo mensual del SUA y generación de líneas de captura SIPARE sin diferencias.',
+                'Cero multas, recargos o créditos fiscales emitidos por el IMSS',
+                35.0,
+                75.0,
+                'Nominas',
+                '2026-11-15',
+                'EN_PROGRESO'
+            );
+
+            insertMeta.run(
+                4,
+                'Conciliación de CFDI de Nómina en Visor del SAT',
+                'Cotejo mensual de acumulados de nómina vs Visor de Comprobantes de Nómina del SAT.',
+                'Discrepancia fiscal menor al 0.01% al cierre de mes',
+                25.0,
+                90.0,
+                'Fiscal',
+                '2026-10-25',
+                'EN_PROGRESO'
+            );
+
+            // Metas para Gerente Fiscal (Valeria Falcón - ID 3) - Suma: 50% + 50% = 100%
+            insertMeta.run(
+                3,
+                'Supervisión y Dictamen de Cierres Fiscales Mensuales',
+                'Validación técnica de declaraciones provisionales de ISR, IVA y retenciones de personas morales.',
+                '100% de declaraciones validadas y enviadas antes del día 17',
                 50.0,
-                60.0,
-                'Desempeño',
+                80.0,
+                'Fiscal',
+                '2026-10-31',
+                'EN_PROGRESO'
+            );
+
+            insertMeta.run(
+                3,
+                'Capacitación y Actualización en Reformas SAT 2026',
+                'Sesiones técnicas para el equipo en materia de Carta Porte, Complemento Pagos 2.0 y REPSE.',
+                '4 talleres completados con evaluación de comprensión ≥ 9.0',
+                50.0,
+                70.0,
+                'Capacitacion',
                 '2026-11-30',
                 'EN_PROGRESO'
             );
@@ -573,10 +494,10 @@ function seedFeedAndMetas() {
 function seedReportesPlantillas() {
     db.get('SELECT COUNT(*) as count FROM reportes_plantillas', [], (err, row) => {
         if (!err && row && row.count === 0) {
-            console.log('📊 Sembrando plantillas de reportes estándar para Recursos Humanos...');
+            console.log('📊 Sembrando plantillas de reportes estándar para FALCONT...');
             const plantillas = [
                 {
-                    nombre: 'Plantilla Ficha Integral de Personal (RH Buk)',
+                    nombre: 'Plantilla Ficha Integral de Personal Contable (Buk)',
                     descripcion: 'Expediente general del colaborador: puesto, contacto, RFC, contrato, antigüedad y líder.',
                     categoria: 'COLABORADORES',
                     campos: JSON.stringify(['numero_empleado', 'nombre', 'rfc', 'email', 'puesto', 'departamento', 'telefono', 'fecha_ingreso', 'antiguedad', 'tipo_contrato', 'estatus_laboral', 'lider_nombre', 'salario_base', 'rol']),
@@ -590,15 +511,15 @@ function seedReportesPlantillas() {
                     es_sistema: 1
                 },
                 {
-                    nombre: 'Plantilla Evaluación de Desempeño y Metas (100%)',
+                    nombre: 'Plantilla Evaluación de Desempeño y Metas Fiscales (100%)',
                     descripcion: 'Seguimiento de metas ponderadas, avance porcentual, categorías, indicadores y fechas límite.',
                     categoria: 'METAS',
                     campos: JSON.stringify(['numero_empleado', 'nombre', 'puesto', 'departamento', 'lider_nombre', 'meta_titulo', 'meta_descripcion', 'meta_indicador', 'meta_peso', 'meta_avance', 'meta_categoria', 'meta_fecha_limite', 'meta_estatus', 'meta_fecha_creacion']),
                     es_sistema: 1
                 },
                 {
-                    nombre: 'Plantilla Consolidado Corporativo Maestro',
-                    descripcion: 'Visión 360° combinando ficha del colaborador, saldo de vacaciones y desempeño de metas.',
+                    nombre: 'Consolidado Maestro Despacho Contable FALCONT',
+                    descripcion: 'Visión 360° combinando expediente contable, saldo de vacaciones y balance de metas ponderadas.',
                     categoria: 'CONSOLIDADO',
                     campos: JSON.stringify(['numero_empleado', 'nombre', 'rfc', 'email', 'puesto', 'departamento', 'fecha_ingreso', 'estatus_laboral', 'vac_disponibles', 'inc_subtipo', 'inc_dias', 'inc_estatus', 'meta_titulo', 'meta_peso', 'meta_avance', 'meta_estatus', 'lider_nombre']),
                     es_sistema: 1
@@ -611,60 +532,51 @@ function seedReportesPlantillas() {
             `);
 
             plantillas.forEach(p => {
-                stmt.run(p.nombre, p.descripcion, p.categoria, p.campos, 'Sistema RDL', p.es_sistema);
+                stmt.run(p.nombre, p.descripcion, p.categoria, p.campos, 'Sistema FALCONT', p.es_sistema);
             });
 
             stmt.finalize(() => {
-                console.log('✅ Plantillas de reportes para RH inicializadas con éxito.');
+                console.log('✅ Plantillas de reportes contables inicializadas con éxito.');
             });
-        } else if (!err && row && row.count > 0) {
-            // Asegurar que la plantilla de incidencias del sistema cuente con los campos completos actualizados
-            const incidenciasFields = JSON.stringify(['numero_empleado', 'nombre', 'rfc', 'puesto', 'departamento', 'inc_tipo', 'inc_subtipo', 'inc_fecha_inicio', 'inc_fecha_fin', 'inc_horario', 'inc_horas', 'inc_dias', 'inc_motivo', 'inc_estatus', 'inc_lider', 'inc_fecha_solicitud', 'vac_disponibles']);
-            db.run(`
-                UPDATE reportes_plantillas 
-                SET nombre = 'Plantilla Auditoría de Vacaciones & Permisos (Control de Incidencias)',
-                    campos_seleccionados = ?
-                WHERE es_sistema = 1 AND categoria = 'INCIDENCIAS'
-            `, [incidenciasFields], () => {});
         }
     });
 }
 
-// 9. Garantizar usuario Dummy para Evaluación de Clientes (Acceso Total 360°)
+// Garantizar usuario Dummy para Evaluación de Clientes (Acceso Total 360°)
 export function seedDummyClientUser() {
-    const demoEmail = 'demo@rdl.com.mx';
-    const demoRfc = 'DEMO880101RDL';
+    const demoEmail = 'demo@falcont.com.mx';
+    const demoRfc = 'DEMO880101FLC';
 
     db.get("SELECT id, email, rfc FROM usuarios WHERE LOWER(email) = LOWER(?) OR UPPER(rfc) = UPPER(?) LIMIT 1", [demoEmail, demoRfc], (err, user) => {
         if (!err && !user) {
-            console.log("🌱 Creando usuario Dummy para Evaluación de Clientes...");
+            console.log("🌱 Creando usuario Dummy para Evaluación de Clientes FALCONT...");
             db.run(`
-                INSERT INTO usuarios (
+                INSERT OR IGNORE INTO usuarios (
                     email, nombre, rol, puesto, departamento, avatar, telefono,
                     fecha_ingreso, tipo_contrato, numero_empleado, rfc,
                     dias_vacaciones_totales, dias_vacaciones_tomados, estatus_laboral, lider_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVO', 1)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVO', NULL)
             `, [
                 demoEmail,
-                'Lic. Carlos Mendoza (Cliente Demo)',
+                'C.P.C. Carlos Mendoza (Cliente Demo)',
                 'ADMIN',
-                'Director de Operaciones & Auditoría (Demo)',
+                'Socio Director & Auditoría (Demo 360°)',
                 'Dirección General & Auditoría',
                 'CM',
-                '+52 (55) 5482-9099',
-                '2024-01-15',
+                '+52 (55) 5500-9099',
+                '2023-01-15',
                 'Tiempo Indeterminado',
-                'RDL-DEMO',
+                'FLC-DEMO',
                 demoRfc,
                 20,
                 4
             ], function(insertErr) {
                 if (!insertErr) {
                     const demoUserId = this.lastID;
-                    console.log(`✅ Usuario Dummy creado con ID: ${demoUserId}`);
+                    console.log(`✅ Usuario Demo creado con ID: ${demoUserId}`);
                     seedDemoGoalsAndIncidencias(demoUserId);
                 } else {
-                    console.error("❌ Error al crear usuario dummy:", insertErr.message);
+                    console.error("❌ Error al crear usuario demo:", insertErr.message);
                 }
             });
         } else if (user) {
@@ -672,8 +584,8 @@ export function seedDummyClientUser() {
             db.run(`
                 UPDATE usuarios 
                 SET rol = 'ADMIN', rfc = ?, estatus_laboral = 'ACTIVO',
-                    nombre = 'Lic. Carlos Mendoza (Cliente Demo)',
-                    puesto = 'Director de Operaciones & Auditoría (Demo)',
+                    nombre = 'C.P.C. Carlos Mendoza (Cliente Demo)',
+                    puesto = 'Socio Director & Auditoría (Demo 360°)',
                     departamento = 'Dirección General & Auditoría',
                     dias_vacaciones_totales = 20,
                     dias_vacaciones_tomados = 4
@@ -701,47 +613,47 @@ function seedDemoGoalsAndIncidencias(demoUserId) {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `);
 
-                // Meta 1 (40%): Evaluación y Adopción del Hub RDL
+                // Meta 1 (40%): Cierre Fiscal Mensual & Declaraciones SAT
                 insertMeta.run(
                     demoUserId,
-                    'Evaluación y Adopción del Hub RDL',
-                    'Supervisión y auditoría de módulos operativos: Muro, Directorio Buk, Vacaciones, Metas y Reportes.',
-                    '100% de módulos operativos validados por la dirección',
+                    'Cierre Fiscal Mensual & Declaraciones SAT',
+                    'Supervisión y auditoría del cumplimiento de pagos provisionales y definitivos de clientes.',
+                    '100% de declaraciones presentadas oportunamente sin multas ni recargos',
                     40.0,
                     85.0,
-                    'OKR',
+                    'Fiscal',
                     '2026-10-31',
                     'EN_PROGRESO'
                 );
 
-                // Meta 2 (35%): Auditoría y Cumplimiento Normativo (NOM-035 / LFT)
+                // Meta 2 (35%): Auditoría y Conciliación de CFDI 4.0 vs Balanza
                 insertMeta.run(
                     demoUserId,
-                    'Auditoría y Cumplimiento Normativo (NOM-035 / LFT)',
-                    'Garantizar la trazabilidad de incidencias y justificación de ausencias legales.',
-                    '0 incidencias sin justificación documental ni visto bueno',
+                    'Auditoría y Conciliación de CFDI 4.0 vs Balanza',
+                    'Cotejo analítico entre facturación emitida/recibida y registros contables en sistema.',
+                    '0 discrepancias entre CFDI timbrados y balanzas de comprobación',
                     35.0,
                     70.0,
-                    'Caso Legal',
+                    'Auditoria',
                     '2026-11-15',
                     'EN_PROGRESO'
                 );
 
-                // Meta 3 (25%): Optimización y Extracción de Reportes de Talento
+                // Meta 3 (25%): Timbrado y Dispersión de Nómina e IMSS
                 insertMeta.run(
                     demoUserId,
-                    'Optimización y Extracción de Reportes de Talento',
-                    'Configuración de plantillas personalizadas en Excel y análisis de métricas clave.',
-                    'Generación y exportación de reportes consolidados sin errores',
+                    'Timbrado y Dispersión de Nómina e IMSS',
+                    'Garantizar la exactitud de recibos de nómina y liquidación oportuna de cuotas obrero-patronales.',
+                    'Emisión de nóminas y generación SUA/SIPARE al 100% en tiempo',
                     25.0,
                     90.0,
-                    'Desempeño',
+                    'Nominas',
                     '2026-12-15',
                     'EN_PROGRESO'
                 );
 
                 insertMeta.finalize(() => {
-                    console.log("✅ Metas ponderadas (100%) registradas para usuario Demo.");
+                    console.log("✅ Metas ponderadas (100%) registradas para usuario Demo de FALCONT.");
                 });
             });
         }
@@ -751,7 +663,7 @@ function seedDemoGoalsAndIncidencias(demoUserId) {
     db.get("SELECT COUNT(*) as count FROM notificaciones WHERE usuario_id = ?", [demoUserId], (notifErr, nRow) => {
         const notifCount = nRow ? nRow.count : 0;
         if (!notifErr && notifCount < 2) {
-            console.log(`🔔 Sembrando notificaciones de bienvenida para usuario Demo ID ${demoUserId}...`);
+            console.log(`🔔 Sembrando notificaciones para usuario Demo ID ${demoUserId}...`);
             db.run("DELETE FROM notificaciones WHERE usuario_id = ?", [demoUserId], () => {
                 const insertNotif = db.prepare(`
                     INSERT INTO notificaciones (usuario_id, remitente_id, remitente_nombre, remitente_avatar, tipo, titulo, mensaje, leido)
@@ -760,23 +672,23 @@ function seedDemoGoalsAndIncidencias(demoUserId) {
 
                 insertNotif.run(
                     demoUserId,
-                    10,
-                    'Lic. Denis Ramos',
+                    4,
+                    'C.P. Denis Ramos',
                     'DR',
                     'INCIDENCIA_SOLICITUD',
                     'Nueva Solicitud de Permiso por Día',
-                    'Lic. Denis Ramos ha solicitado un Permiso por día (con goce de sueldo) para el 2026-10-05.',
+                    'C.P. Denis Ramos ha solicitado un Permiso por día (con goce de sueldo) para el 2026-10-05.',
                     0
                 );
 
                 insertNotif.run(
                     demoUserId,
-                    1,
-                    'Dirección de Talento RDL',
+                    2,
+                    'Dirección de Talento FALCONT',
                     'AC',
                     'SISTEMA',
-                    '¡Bienvenido al Entorno de Evaluación RDL Hub!',
-                    'Tu perfil cuenta con privilegios de Administrador para evaluar todos los módulos corporativos: Muro, Reportes Excel, Fichas Buk y Metas.',
+                    '¡Bienvenido a FALCONT Hub!',
+                    'Tu perfil cuenta con privilegios de Administrador para evaluar todos los módulos: Muro, Reportes Excel, Fichas Buk y Metas Ponderadas.',
                     0
                 );
 
@@ -789,12 +701,11 @@ function seedDemoGoalsAndIncidencias(demoUserId) {
 
     // 3. Vincular a Denis Ramos como colaboradora a cargo y asegurar solicitudes pendientes para el módulo de Aprobación
     const setupDenis = (denisId) => {
-        db.run("UPDATE usuarios SET lider_id = ?, rfc = COALESCE(rfc, 'RAMD940612RD1') WHERE id = ?", [demoUserId, denisId], () => {
-            // Reasignar solicitudes pendientes al nuevo líder Demo
+        db.run("UPDATE usuarios SET lider_id = ?, rfc = COALESCE(rfc, 'RAMD940612FL2') WHERE id = ?", [demoUserId, denisId], () => {
             db.run("UPDATE incidencias_vacaciones SET lider_id = ? WHERE usuario_id = ? AND estatus = 'PENDIENTE'", [demoUserId, denisId], () => {
                 db.get("SELECT COUNT(*) as count FROM incidencias_vacaciones WHERE lider_id = ? AND estatus = 'PENDIENTE'", [demoUserId], (incErr, incRow) => {
                     if (!incErr && (!incRow || incRow.count === 0)) {
-                        console.log("✈️ Creando incidencias de prueba para evaluar módulo de Aprobación...");
+                        console.log("✈️ Creando incidencias contables para evaluar módulo de Aprobación...");
                         const insertInc = db.prepare(`
                             INSERT INTO incidencias_vacaciones (
                                 usuario_id, usuario_nombre, usuario_rol, tipo, subtipo,
@@ -805,8 +716,8 @@ function seedDemoGoalsAndIncidencias(demoUserId) {
 
                         insertInc.run(
                             denisId,
-                            'Lic. Denis Ramos',
-                            'ABOGADA_JR',
+                            'C.P. Denis Ramos',
+                            'CONTADOR_JR',
                             'Permiso',
                             'DIA_CON_GOCE',
                             '2026-10-05',
@@ -815,15 +726,15 @@ function seedDemoGoalsAndIncidencias(demoUserId) {
                             null,
                             0,
                             1,
-                            'Trámite oficial y renovación de pasaporte para viaje corporativo.',
+                            'Trámite presencial urgente ante Secretaría de Finanzas y SAT para entrega de aclaración fiscal.',
                             'PENDIENTE',
                             demoUserId
                         );
 
                         insertInc.run(
                             denisId,
-                            'Lic. Denis Ramos',
-                            'ABOGADA_JR',
+                            'C.P. Denis Ramos',
+                            'CONTADOR_JR',
                             'Vacaciones',
                             'VACACIONES',
                             '2026-10-12',
@@ -838,7 +749,7 @@ function seedDemoGoalsAndIncidencias(demoUserId) {
                         );
 
                         insertInc.finalize(() => {
-                            console.log("✅ Incidencias pendientes creadas para que el usuario Demo pueda aprobarlas.");
+                            console.log("✅ Incidencias pendientes creadas para autorizar por el usuario Demo.");
                         });
                     }
                 });
@@ -846,23 +757,16 @@ function seedDemoGoalsAndIncidencias(demoUserId) {
         });
     };
 
-    db.get("SELECT id, nombre, email FROM usuarios WHERE LOWER(email) = 'denis@rdl.com.mx' LIMIT 1", [], (denisErr, denis) => {
-        if (!denisErr && denis) {
-            setupDenis(denis.id);
-        } else if (!denisErr && !denis) {
-            db.run(`
-                INSERT INTO usuarios (
-                    email, nombre, rol, puesto, departamento, avatar, telefono,
-                    fecha_ingreso, tipo_contrato, numero_empleado, rfc,
-                    dias_vacaciones_totales, dias_vacaciones_tomados, estatus_laboral, lider_id
-                ) VALUES ('denis@rdl.com.mx', 'Lic. Denis Ramos', 'ABOGADA_JR', 'Abogada Junior de Litigio', 'Legal & Talent RDL', 'DR', '+52 (55) 5482-9010', '2025-02-01', 'Tiempo Indeterminado', 'RDL-035', 'RAMD940612RD1', 12, 2, 'ACTIVO', ?)
-            `, [demoUserId], function(insDenisErr) {
-                if (!insDenisErr && this.lastID) {
-                    setupDenis(this.lastID);
-                }
-            });
-        }
-    });
+    const checkAndSetupDenis = () => {
+        db.get("SELECT id, nombre, email FROM usuarios WHERE LOWER(email) = 'denis.ramos@falcont.com.mx' LIMIT 1", [], (denisErr, denis) => {
+            if (!denisErr && denis) {
+                setupDenis(denis.id);
+            }
+        });
+    };
+
+    checkAndSetupDenis();
+    setTimeout(checkAndSetupDenis, 1200);
 }
 
 export default db;

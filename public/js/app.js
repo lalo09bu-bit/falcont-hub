@@ -1,10 +1,10 @@
 /**
- * RDL Intelligence Hub - Main Application Entry Point & Login Controller
- * Splash Screen flotante con destellos verdes, control de roles y Metas Ponderadas (100%)
+ * FALCONT HUB - Main Application Entry Point & Login Controller
+ * Splash Screen flotante institucional, control de roles y Metas Ponderadas (100%)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Iniciando RDL Intelligence Hub...');
+    console.log('🚀 Iniciando FALCONT HUB...');
     
     // Iniciar Animación de Carga Splash Screen y verificar sesión segura
     runSplashScreenAnimation(async () => {
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * Animación Splash Screen con GSAP (Logo flotante RDL + Barra de progreso)
+ * Animación Splash Screen con GSAP (Logo flotante FALCONT + Barra de progreso)
  */
 function runSplashScreenAnimation(onCompleteCallback) {
     const splash = document.getElementById('splash-screen');
@@ -23,7 +23,7 @@ function runSplashScreenAnimation(onCompleteCallback) {
     const statusText = document.getElementById('splash-status-text');
 
     const steps = [
-        { pct: 25, text: 'Iniciando RDL Intelligence Hub...' },
+        { pct: 25, text: 'Iniciando FALCONT HUB...' },
         { pct: 55, text: 'Sincronizando información de colaboradores...' },
         { pct: 85, text: 'Cargando indicadores de desempeño y ausencias...' },
         { pct: 100, text: '¡Bienvenido(a) a tu espacio de trabajo!' }
@@ -202,8 +202,8 @@ class LoginModule {
             window.clientSocket.socket.emit('join_room', user);
         }
 
-        // Habilitar botón de administración de metas para Admin, Abogada SR y Recursos Humanos (RH)
-        const isManager = user.rol === 'ADMIN' || user.rol === 'ABOGADA_SR' || user.rol === 'RH' || user.rol === 'ADMIN_RH';
+        // Habilitar botón de administración de metas para Admin, Contador SR y Recursos Humanos (RH)
+        const isManager = user.rol === 'ADMIN' || user.rol === 'CONTADOR_SR' || user.rol === 'ABOGADA_SR' || user.rol === 'RH' || user.rol === 'ADMIN_RH';
         const btnAdminMetas = document.getElementById('btn-admin-manage-metas');
         if (btnAdminMetas) {
             if (isManager) {
@@ -228,7 +228,7 @@ class LoginModule {
             if (avatarSm) avatarSm.textContent = initials;
         }
 
-        if (user.rol === 'ABOGADA_JR') {
+        if (user.rol === 'CONTADOR_JR' || user.rol === 'ABOGADA_JR') {
             if (composerCard) composerCard.classList.add('hidden');
             if (jrNotice) jrNotice.classList.remove('hidden');
         } else {

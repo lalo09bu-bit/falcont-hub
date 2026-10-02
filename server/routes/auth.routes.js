@@ -7,7 +7,7 @@ import { verificarSesion } from '../middlewares/auth.middleware.js';
 const router = Router();
 
 // Dominios corporativos estrictamente autorizados para la plataforma
-export const AUTHORIZED_DOMAINS = ['adeltaconsultores.com', 'adeltaconsultore.com', 'rdlabogados.com.mx', 'rdl.com.mx'];
+export const AUTHORIZED_DOMAINS = ['falcont.com.mx', 'falcont.mx', 'falcont.com', 'adeltaconsultores.com', 'adeltaconsultore.com', 'rdlabogados.com.mx', 'rdl.com.mx'];
 
 /**
  * Valida si una dirección de correo electrónico pertenece a los dominios corporativos autorizados.
@@ -348,6 +348,7 @@ router.post('/login-rfc', authRateLimiter, (req, res) => {
 
         const jwtToken = generarJwt(usuario);
 
+        res.cookie('falcont_session', jwtToken, getCookieSecurityOptions(req));
         res.cookie('rdl_session', jwtToken, getCookieSecurityOptions(req));
 
         console.log(`🔐 Sesión iniciada con éxito (RFC): ${usuario.nombre} (${usuario.rfc})`);
@@ -403,6 +404,7 @@ router.post('/register-rfc', authRateLimiter, (req, res) => {
             if (existing.email.toLowerCase() === email && existing.rfc && existing.rfc.toUpperCase() === rfc) {
                 // Ya existe exactamente este usuario: iniciar sesión de una vez
                 const jwtToken = generarJwt(existing);
+                res.cookie('falcont_session', jwtToken, getCookieSecurityOptions(req));
                 res.cookie('rdl_session', jwtToken, getCookieSecurityOptions(req));
                 return res.json({
                     success: true,
@@ -470,6 +472,7 @@ router.post('/register-rfc', authRateLimiter, (req, res) => {
 
             const jwtToken = generarJwt(nuevoUsuario);
 
+            res.cookie('falcont_session', jwtToken, getCookieSecurityOptions(req));
             res.cookie('rdl_session', jwtToken, getCookieSecurityOptions(req));
 
             console.log(`✅ Nuevo colaborador dado de alta e iniciado: ${nombre} (${rfc} / ${email}) ID: ${nuevoUsuarioId}`);
@@ -507,6 +510,7 @@ router.get('/verify', async (req, res) => {
         // Generar JWT y asignar cookie segura httpOnly
         const jwtToken = generarJwt(usuario);
 
+        res.cookie('falcont_session', jwtToken, getCookieSecurityOptions(req));
         res.cookie('rdl_session', jwtToken, getCookieSecurityOptions(req));
 
         console.log(`🔐 Sesión iniciada con éxito para: ${usuario.nombre} (${usuario.email})`);
@@ -533,10 +537,9 @@ router.get('/me', verificarSesion, (req, res) => {
  * Destruye la cookie de sesión activa.
  */
 router.post('/logout', (req, res) => {
-    res.clearCookie('rdl_session', {
-        ...getCookieSecurityOptions(req),
-        maxAge: 0
-    });
+    const clearOpts = { ...getCookieSecurityOptions(req), maxAge: 0 };
+    res.clearCookie('falcont_session', clearOpts);
+    res.clearCookie('rdl_session', clearOpts);
 
     return res.json({
         success: true,
@@ -546,8 +549,8 @@ router.post('/logout', (req, res) => {
 
 /**
  * GET /api/auth/dev-login
- * Acceso Rápido de Prueba (1 Clic) para Evaluación en Azure VM o Render:
- * Emite la cookie segura rdl_session con JWT y redirige a la plataforma.
+ * Acceso Rápido de Prueba (1 Clic) para Evaluación en Render / Nube:
+ * Emite las cookies de sesión con JWT y redirige a la plataforma.
  */
 router.get('/dev-login', (req, res) => {
     const role = req.query.role;
@@ -567,7 +570,7 @@ router.get('/dev-login', (req, res) => {
         query += ' AND rol = ? LIMIT 1';
         params = [role];
     } else {
-        query += ' AND rol = "RH" LIMIT 1';
+        query += ' AND rol = "ADMIN" LIMIT 1';
     }
 
     db.get(query, params, (err, usuario) => {
@@ -578,6 +581,7 @@ router.get('/dev-login', (req, res) => {
 
         const jwtToken = generarJwt(usuario);
 
+        res.cookie('falcont_session', jwtToken, getCookieSecurityOptions(req));
         res.cookie('rdl_session', jwtToken, getCookieSecurityOptions(req));
 
         console.log(`⚡ [DEV LOGIN] Sesión instantánea iniciada como: ${usuario.nombre} (${usuario.rfc || usuario.rol})`);

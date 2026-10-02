@@ -4,7 +4,7 @@ import SplashScreen from '../components/SplashScreen.astro';
 import Header from '../components/Header.astro';
 ---
 
-<Layout title="RDL Intelligence Hub - Portal Institucional">
+<Layout title="FALCONT Despacho Contable - Portal Institucional">
 	<!-- 1. Pantalla Splash Flotante -->
 	<SplashScreen />
 
@@ -28,13 +28,13 @@ import Header from '../components/Header.astro';
 				<div class="glass-card employee-card floating-element">
 					<div class="card-tag">Ficha de Colaborador</div>
 					<div class="employee-avatar-wrapper">
-						<div class="employee-avatar" id="emp-avatar">AM</div>
+						<div class="employee-avatar" id="emp-avatar">CM</div>
 						<div class="green-online-badge"></div>
 					</div>
 					
-					<h2 class="employee-name" id="emp-name">Lic. Ana Martinez</h2>
-					<span class="employee-puesto" id="emp-puesto">Abogada Junior de Litigio</span>
-					<span class="employee-dept" id="emp-dept">Departamento Legal RDL</span>
+					<h2 class="employee-name" id="emp-name">C.P.C. Carlos Mendoza</h2>
+					<span class="employee-puesto" id="emp-puesto">Socio Director & Auditoría</span>
+					<span class="employee-dept" id="emp-dept">Dirección General & Auditoría</span>
 
 					<div class="divider"></div>
 
@@ -46,17 +46,17 @@ import Header from '../components/Header.astro';
 						</div>
 						<div class="vacations-gauge-container">
 							<div class="vacation-circle">
-								<span class="vacation-days-number" id="emp-vacations-remaining">10</span>
+								<span class="vacation-days-number" id="emp-vacations-remaining">16</span>
 								<span class="vacation-days-label">Días Libres</span>
 							</div>
 						</div>
 						<div class="vacations-stats">
 							<div class="vstat">
-								<span class="vstat-num" id="emp-vacations-total">12</span>
+								<span class="vstat-num" id="emp-vacations-total">20</span>
 								<span class="vstat-lbl">Totales</span>
 							</div>
 							<div class="vstat">
-								<span class="vstat-num" id="emp-vacations-taken">2</span>
+								<span class="vstat-num" id="emp-vacations-taken">4</span>
 								<span class="vstat-lbl">Tomados</span>
 							</div>
 						</div>
@@ -103,7 +103,7 @@ import Header from '../components/Header.astro';
 
                     <!-- Banner de Acceso al Centro de Reportes & Exportadores (Solo RH) -->
                     <div class="reportes-quick-banner" id="left-panel-reportes-banner" style="display: none; margin-top: 14px;">
-                        <button type="button" class="btn btn-full" onclick="reportesMod.openModal()" style="display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; padding: 10px 14px; background: rgba(15, 118, 110, 0.1); border: 1.5px solid var(--rdl-teal); color: var(--rdl-teal); border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
+                        <button type="button" class="btn btn-full" onclick="reportesMod.openModal()" style="display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; padding: 10px 14px; background: rgba(85, 120, 155, 0.1); border: 1.5px solid var(--falcont-blue); color: var(--falcont-blue); border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
                             <span>📊</span> Centro de Reportes & Excel
                         </button>
                     </div>
@@ -114,8 +114,8 @@ import Header from '../components/Header.astro';
 			<main class="center-panel" id="rdl-center-panel">
 				<div class="glass-card post-composer floating-element" id="post-composer-card">
 					<div class="composer-header">
-						<div class="user-avatar-sm" id="composer-user-avatar">SR</div>
-						<span class="composer-prompt">¿Qué deseas publicar hoy para el equipo de RDL?</span>
+						<div class="user-avatar-sm" id="composer-user-avatar">CM</div>
+						<span class="composer-prompt">¿Qué comunicado o aviso contable deseas publicar para el equipo de FALCONT?</span>
 					</div>
 					
 					<form id="form-create-post">
@@ -138,7 +138,9 @@ import Header from '../components/Header.astro';
 							<div style="display: flex; align-items: center; gap: 8px;">
 								<select id="post-categoria" class="select-sm">
 									<option value="Corporativo">📢 Corporativo</option>
-									<option value="Aviso Legal">⚖️ Aviso Legal</option>
+									<option value="Aviso Fiscal">📊 Aviso Fiscal</option>
+									<option value="Contabilidad">📑 Contabilidad</option>
+									<option value="Auditoria">🔍 Auditoría</option>
 									<option value="Integracion">🎉 Integración</option>
 									<option value="Urgente">🚨 Urgente</option>
 								</select>
@@ -149,17 +151,17 @@ import Header from '../components/Header.astro';
 							</div>
 
 							<button type="submit" class="btn btn-primary" id="btn-submit-post">
-								Publicar en el Muro RDL
+								Publicar en el Muro FALCONT
 							</button>
 						</div>
 					</form>
 				</div>
 
-				<!-- Aviso para Abogada JR -->
+				<!-- Aviso para Colaboradores Junior -->
 				<div class="glass-card jr-notice-card hidden" id="jr-notice-card">
 					<div class="notice-content">
 						<span>ℹ️</span>
-						<p><strong>Muro de Comunicación General RDL:</strong> Como Abogada JR puedes leer, dar Me Gusta y comentar las publicaciones oficiales.</p>
+						<p><strong>Muro de Comunicación FALCONT:</strong> Como Colaborador Contable puedes leer, dar Me Gusta y comentar las publicaciones oficiales.</p>
 					</div>
 				</div>
 
@@ -208,12 +210,15 @@ import Header from '../components/Header.astro';
                         <div class="form-row">
                             <div class="form-group">
                                 <label>Nombre de la Meta</label>
-                                <input type="text" id="gm-meta-titulo" placeholder="Ej: Revisión y Dictamen de Expedientes" required>
+                                <input type="text" id="gm-meta-titulo" placeholder="Ej: Cierre Fiscal Mensual & Declaraciones SAT" required>
                             </div>
                             <div class="form-group">
                                 <label>Categoría</label>
                                 <select id="gm-meta-categoria" class="select-sm" style="width: 100%; height: 38px;">
-                                    <option value="Caso Legal">⚖️ Caso Legal</option>
+                                    <option value="Fiscal">📊 Fiscal & SAT</option>
+                                    <option value="Contabilidad">📑 Contabilidad & Balanzas</option>
+                                    <option value="Auditoria">🔍 Auditoría</option>
+                                    <option value="Nominas">💼 Nóminas & IMSS</option>
                                     <option value="Desempeño">📈 Desempeño</option>
                                     <option value="Capacitación">🎓 Capacitación</option>
                                     <option value="OKR">🎯 OKR Estratégico</option>
@@ -443,16 +448,16 @@ import Header from '../components/Header.astro';
                 <!-- Datos de Identidad -->
                 <div class="buk-identity-info">
                     <div class="buk-identity-top">
-                        <h2 id="buk-emp-name" class="buk-name-title">Lic. Ana Martinez</h2>
-                        <span id="buk-emp-role-badge" class="role-badge badge-jr">Abogada JR</span>
+                        <h2 id="buk-emp-name" class="buk-name-title">C.P. Denis Ramos</h2>
+                        <span id="buk-emp-role-badge" class="role-badge badge-jr">Contador JR</span>
                         <span id="buk-emp-status-pill" class="buk-status-pill status-active">🟢 Activo</span>
                     </div>
                     <div class="buk-identity-sub">
-                        <span id="buk-emp-puesto" style="color: var(--accent-green-bright); font-weight: 600;">Abogada Junior de Litigio</span>
+                        <span id="buk-emp-puesto" style="color: var(--accent-green-bright); font-weight: 600;">Contador Junior Fiscal</span>
                         <span class="buk-dot-sep">•</span>
-                        <span id="buk-emp-dept" style="color: var(--text-muted);">Departamento Legal RDL</span>
+                        <span id="buk-emp-dept" style="color: var(--text-muted);">Contabilidad e Impuestos</span>
                         <span class="buk-dot-sep">•</span>
-                        <span id="buk-emp-id-badge" style="color: var(--text-dim); font-size: 0.8rem;">ID: RDL-001</span>
+                        <span id="buk-emp-id-badge" style="color: var(--text-dim); font-size: 0.8rem;">ID: FLC-004</span>
                     </div>
                 </div>
 
@@ -513,21 +518,23 @@ import Header from '../components/Header.astro';
                         </div>
                     </div>
 
-                    <!-- Sección para Administradores / Abogadas SR: Asignar Meta Directamente -->
+                    <!-- Sección para Administradores / Contadores SR: Asignar Meta Directamente -->
                     <div class="buk-admin-add-meta buk-admin-only" style="margin-bottom: 20px;">
                         <h3 style="font-size: 0.92rem; color: var(--accent-green-bright); margin-bottom: 10px;">
-                            ➕ Asignar Nueva Meta a esta Colaboradora
+                            ➕ Asignar Nueva Meta a este Colaborador
                         </h3>
                         <form id="form-buk-add-meta">
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Nombre de la Meta</label>
-                                    <input type="text" id="buk-new-meta-titulo" placeholder="Ej: Auditoría de Contratos de Personal" required>
+                                    <input type="text" id="buk-new-meta-titulo" placeholder="Ej: Auditoría y Dictamen Fiscal Anual" required>
                                 </div>
                                 <div class="form-group">
                                     <label>Categoría</label>
                                     <select id="buk-new-meta-categoria" class="select-sm" style="width: 100%; height: 38px;">
-                                        <option value="Caso Legal">⚖️ Caso Legal</option>
+                                        <option value="Contabilidad">📊 Contabilidad</option>
+                                        <option value="Auditoría">📑 Auditoría</option>
+                                        <option value="Fiscal">⚖️ Fiscal</option>
                                         <option value="Desempeño">📈 Desempeño</option>
                                         <option value="Capacitación">🎓 Capacitación</option>
                                         <option value="OKR">🎯 OKR Estratégico</option>
@@ -639,14 +646,14 @@ import Header from '../components/Header.astro';
                         </div>
                         <div class="form-group">
                             <label>RFC del Colaborador</label>
-                            <input type="text" id="edit-buk-rfc" placeholder="Ej: COSR880101RDL" maxlength="13" style="text-transform: uppercase; font-family: monospace; font-weight: 600;">
+                            <input type="text" id="edit-buk-rfc" placeholder="Ej: DEMO880101FLC" maxlength="13" style="text-transform: uppercase; font-family: monospace; font-weight: 600;">
                         </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
                             <label>No. de Empleado</label>
-                            <input type="text" id="edit-buk-numero-empleado" placeholder="Ej: RDL-005">
+                            <input type="text" id="edit-buk-numero-empleado" placeholder="Ej: FLC-005">
                         </div>
                         <div class="form-group">
                             <label>Teléfono / Contacto</label>
@@ -709,14 +716,14 @@ import Header from '../components/Header.astro';
             </div>
             <div class="modal-body">
                 <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 14px; line-height: 1.5;">
-                    Para conectar esta aplicación instalada con el servidor central de RDL en tiempo real:
+                    Para conectar esta aplicación instalada con el servidor central de FALCONT en tiempo real:
                 </p>
 
                 <div class="form-group">
                     <label style="font-weight: 700; color: var(--rdl-navy);">URL del Servidor Online o IP Local:</label>
-                    <input type="text" id="network-ip-input" placeholder="Ej: https://hub.rdl.com.mx o 192.168.1.50" value="localhost">
+                    <input type="text" id="network-ip-input" placeholder="Ej: https://falcont-hub.onrender.com o 192.168.1.50" value="localhost">
                     <small style="color: var(--text-dim); display: block; margin-top: 5px; font-size: 0.76rem;">
-                        💡 <strong>Oficina Remota / Online:</strong> Ingresa la URL pública segura (ej: Cloudflare Tunnel o dominio).<br>
+                        💡 <strong>Oficina Remota / Online:</strong> Ingresa la URL pública segura (ej: Render o dominio propio).<br>
                         🏢 <strong>Misma Red Local:</strong> Ingresa la IP de la computadora servidora (ej: 192.168.1.50).
                     </small>
                 </div>
@@ -738,7 +745,7 @@ import Header from '../components/Header.astro';
     <!-- Modal Lightbox para Ampliar Imágenes de Comunicados -->
     <div class="modal-overlay" id="modal-image-lightbox" style="z-index: 9999;" onclick="this.classList.remove('active')">
         <div style="position: relative; max-width: 90vw; max-height: 90vh; display: flex; align-items: center; justify-content: center;" onclick="event.stopPropagation()">
-            <img id="lightbox-full-image" src="" alt="Comunicado RDL" style="max-width: 100%; max-height: 88vh; border-radius: 8px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6); object-fit: contain;">
+            <img id="lightbox-full-image" src="" alt="Comunicado FALCONT" style="max-width: 100%; max-height: 88vh; border-radius: 8px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6); object-fit: contain;">
             <button class="btn-close" onclick="document.getElementById('modal-image-lightbox').classList.remove('active')" style="position: absolute; top: -14px; right: -14px; background: #0f172a; color: white; border: 2px solid white; border-radius: 50%; width: 34px; height: 34px; cursor: pointer; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">✕</button>
         </div>
     </div>
