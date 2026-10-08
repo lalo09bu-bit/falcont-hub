@@ -2,7 +2,15 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import db from '../config/database.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'rdl_intelligence_hub_super_secret_jwt_key_64_characters_long_2026_enterprise_auth';
+let runtimeSecret = process.env.JWT_SECRET;
+if (!runtimeSecret) {
+    if (process.env.NODE_ENV === 'production') {
+        console.warn('⚠️ [SEGURIDAD] JWT_SECRET no está definido en variables de entorno. Generando clave criptográfica aleatoria para esta instancia.');
+    }
+    // Generar clave segura única en tiempo de ejecución para evitar tokens forjados con claves públicas
+    runtimeSecret = crypto.randomBytes(64).toString('hex');
+}
+const JWT_SECRET = runtimeSecret;
 const JWT_EXPIRES_IN = '7d';
 
 /**

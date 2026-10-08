@@ -18,6 +18,9 @@ dist/
 *.db-journal
 adelta_client.db
 falcont_hub.db
+rdl_intelligence_hub.db
+server/db/backup_data.json
+*backup*.json
 
 # Installer, large binaries and native artifacts
 bin/

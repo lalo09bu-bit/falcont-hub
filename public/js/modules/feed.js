@@ -205,31 +205,46 @@ class FeedModule {
             card.className = 'glass-card feed-card';
             card.id = `feed-post-${post.id}`;
 
-            const initials = post.autor_nombre ? post.autor_nombre.split(' ').map(n => n[0]).join('').substring(0, 2) : 'RD';
+            const initials = post.autor_nombre ? post.autor_nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'FL';
 
             // Determinar color de badge por rol o categoría
             let catColor = 'badge-sr';
             if (post.categoria === 'Urgente') catColor = 'badge-admin';
-            else if (post.categoria === 'Aviso Legal') catColor = 'badge-rh';
+            else if (post.categoria === 'Aviso Legal' || post.categoria === 'Aviso Fiscal') catColor = 'badge-rh';
 
             const isLiked = post.user_has_liked === 1 || post.user_has_liked === true;
 
+            const safeAutor = this.escapeHtml(post.autor_nombre || 'Colaborador');
+            const safeRol = this.escapeHtml(post.autor_rol || 'CORPORATIVO');
+            const safeCategoria = this.escapeHtml(post.categoria || 'Corporativo');
+            const safeTitulo = post.titulo ? this.escapeHtml(post.titulo) : '';
+            const safeContenido = this.escapeHtml(post.contenido || '');
+            const safeInitials = this.escapeHtml(initials);
+
+            let safeImg = null;
+            if (post.imagen_url && typeof post.imagen_url === 'string') {
+                const trimmed = post.imagen_url.trim();
+                if (trimmed.startsWith('data:image/') || trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
+                    safeImg = trimmed;
+                }
+            }
+
             card.innerHTML = `
                 <div class="post-author-bar">
-                    <div class="post-author-avatar">${initials}</div>
+                    <div class="post-author-avatar">${safeInitials}</div>
                     <div class="post-author-meta">
-                        <span class="post-author-name">${post.autor_nombre}</span>
-                        <span class="post-time">${post.autor_rol} • ${new Date(post.fecha_creacion).toLocaleDateString('es-MX', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span class="post-author-name">${safeAutor}</span>
+                        <span class="post-time">${safeRol} • ${new Date(post.fecha_creacion).toLocaleDateString('es-MX', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
-                    <span class="role-badge ${catColor}" style="margin-left: auto;">${post.categoria}</span>
+                    <span class="role-badge ${catColor}" style="margin-left: auto;">${safeCategoria}</span>
                 </div>
                 
-                ${post.titulo ? `<h3 class="post-title">${post.titulo}</h3>` : ''}
-                <p class="post-body">${post.contenido}</p>
+                ${safeTitulo ? `<h3 class="post-title">${safeTitulo}</h3>` : ''}
+                <p class="post-body">${safeContenido}</p>
 
-                ${post.imagen_url ? `
-                    <div class="post-image-container" onclick="feedMod.openLightbox('${post.imagen_url}')" title="Haz clic para ampliar la imagen">
-                        <img src="${post.imagen_url}" alt="${post.titulo || 'Comunicado FALCONT'}" class="post-feed-image" loading="lazy">
+                ${safeImg ? `
+                    <div class="post-image-container" onclick="feedMod.openLightbox('${safeImg.replace(/'/g, "\\'")}')" title="Haz clic para ampliar la imagen">
+                        <img src="${safeImg}" alt="${safeTitulo || 'Comunicado FALCONT'}" class="post-feed-image" loading="lazy">
                     </div>
                 ` : ''}
 
@@ -469,17 +484,17 @@ class FeedModule {
             item.className = 'comment-item';
             item.id = `comment-item-${c.id}`;
 
-            const initials = c.autor_avatar || (c.autor_nombre ? c.autor_nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'RD');
+            const initials = c.autor_avatar || (c.autor_nombre ? c.autor_nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'FL');
             const fechaStr = new Date(c.fecha).toLocaleDateString('es-MX', {
                 day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
             });
 
             item.innerHTML = `
-                <div class="comment-author-avatar">${initials}</div>
+                <div class="comment-author-avatar">${this.escapeHtml(initials)}</div>
                 <div class="comment-content-bubble">
                     <div class="comment-author-row">
-                        <span class="comment-author-name">${c.autor_nombre}</span>
-                        <span class="comment-author-puesto">${c.autor_puesto || c.autor_rol || 'Colaborador'}</span>
+                        <span class="comment-author-name">${this.escapeHtml(c.autor_nombre || 'Colaborador')}</span>
+                        <span class="comment-author-puesto">${this.escapeHtml(c.autor_puesto || c.autor_rol || 'Colaborador')}</span>
                         <span class="comment-date">${fechaStr}</span>
                     </div>
                     <p class="comment-text">${this.escapeHtml(c.comentario)}</p>
@@ -545,17 +560,17 @@ class FeedModule {
                         item.className = 'comment-item';
                         item.id = `comment-item-${data.data.id}`;
 
-                        const initials = data.data.autor_avatar || 'RD';
+                        const initials = data.data.autor_avatar || 'FL';
                         const fechaStr = new Date(data.data.fecha).toLocaleDateString('es-MX', {
                             day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
                         });
 
                         item.innerHTML = `
-                            <div class="comment-author-avatar">${initials}</div>
+                            <div class="comment-author-avatar">${this.escapeHtml(initials)}</div>
                             <div class="comment-content-bubble">
                                 <div class="comment-author-row">
-                                    <span class="comment-author-name">${data.data.autor_nombre}</span>
-                                    <span class="comment-author-puesto">${data.data.autor_puesto || data.data.autor_rol || 'Colaborador'}</span>
+                                    <span class="comment-author-name">${this.escapeHtml(data.data.autor_nombre || 'Colaborador')}</span>
+                                    <span class="comment-author-puesto">${this.escapeHtml(data.data.autor_puesto || data.data.autor_rol || 'Colaborador')}</span>
                                     <span class="comment-date">${fechaStr}</span>
                                 </div>
                                 <p class="comment-text">${this.escapeHtml(data.data.comentario)}</p>
@@ -598,17 +613,17 @@ class FeedModule {
                 item.className = 'comment-item';
                 item.id = `comment-item-${data.comentario.id}`;
 
-                const initials = data.comentario.autor_avatar || 'RD';
+                const initials = data.comentario.autor_avatar || 'FL';
                 const fechaStr = new Date(data.comentario.fecha).toLocaleDateString('es-MX', {
                     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
                 });
 
                 item.innerHTML = `
-                    <div class="comment-author-avatar">${initials}</div>
+                    <div class="comment-author-avatar">${this.escapeHtml(initials)}</div>
                     <div class="comment-content-bubble">
                         <div class="comment-author-row">
-                            <span class="comment-author-name">${data.comentario.autor_nombre}</span>
-                            <span class="comment-author-puesto">${data.comentario.autor_puesto || data.comentario.autor_rol || 'Colaborador'}</span>
+                            <span class="comment-author-name">${this.escapeHtml(data.comentario.autor_nombre || 'Colaborador')}</span>
+                            <span class="comment-author-puesto">${this.escapeHtml(data.comentario.autor_puesto || data.comentario.autor_rol || 'Colaborador')}</span>
                             <span class="comment-date">${fechaStr}</span>
                         </div>
                         <p class="comment-text">${this.escapeHtml(data.comentario.comentario)}</p>

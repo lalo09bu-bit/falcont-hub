@@ -224,17 +224,29 @@ ${dataRows}
 }
 
 /**
+ * Sanitiza valores contra Inyección de Fórmulas en CSV/Excel (CWE-1236)
+ */
+export function sanitizeFormula(val) {
+    if (val === null || val === undefined) return '';
+    let str = String(val);
+    if (/^[=+\-@\t\r]/.test(str)) {
+        str = "'" + str;
+    }
+    return str;
+}
+
+/**
  * Genera un archivo CSV con UTF-8 BOM para compatibilidad universal con Excel en Español
  */
 export function generateCsv(columns, rows) {
     const BOM = '\uFEFF';
-    const headerLine = columns.map(c => `"${String(c.label).replace(/"/g, '""')}"`).join(';');
+    const headerLine = columns.map(c => `"${sanitizeFormula(c.label).replace(/"/g, '""')}"`).join(';');
     const dataLines = rows.map(r => {
         return columns.map(c => {
             const fieldKey = c.id || c.key;
             const v = r[fieldKey];
             if (v === null || v === undefined) return '""';
-            return `"${String(v).replace(/"/g, '""')}"`;
+            return `"${sanitizeFormula(v).replace(/"/g, '""')}"`;
         }).join(';');
     });
 

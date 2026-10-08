@@ -7,7 +7,7 @@ import { verificarSesion } from '../middlewares/auth.middleware.js';
 const router = Router();
 
 // Dominios corporativos estrictamente autorizados para la plataforma
-export const AUTHORIZED_DOMAINS = ['falcont.com.mx', 'falcont.mx', 'falcont.com', 'adeltaconsultores.com', 'adeltaconsultore.com', 'rdlabogados.com.mx', 'rdl.com.mx'];
+export const AUTHORIZED_DOMAINS = ['falcont.com.mx', 'falcont.mx', 'falcont.com', 'adeltaconsultores.com', 'rdlabogados.com.mx', 'rdl.com.mx'];
 
 /**
  * Valida si una dirección de correo electrónico pertenece a los dominios corporativos autorizados.
@@ -231,7 +231,7 @@ router.post('/register-magic', authRateLimiter, async (req, res) => {
         }
 
         // 4. Crear nuevo usuario en la base de datos
-        const numEmpleado = `RDL-${Math.floor(100 + Math.random() * 900)}`;
+        const numEmpleado = `FLC-${Math.floor(100 + Math.random() * 900)}`;
         const fechaIngreso = new Date().toISOString().split('T')[0];
 
         const insertQuery = `
@@ -239,7 +239,7 @@ router.post('/register-magic', authRateLimiter, async (req, res) => {
                 email, nombre, rol, puesto, departamento, avatar, telefono,
                 fecha_ingreso, tipo_contrato, numero_empleado, salario_base,
                 estatus_laboral, dias_vacaciones_totales, dias_vacaciones_tomados
-            ) VALUES (?, ?, 'ABOGADA_JR', ?, ?, ?, ?, ?, 'Tiempo Indeterminado', ?, 'Confidencial', 'ACTIVO', 12, 0)
+            ) VALUES (?, ?, 'CONTADOR_JR', ?, ?, ?, ?, ?, 'Tiempo Indeterminado', ?, 'Confidencial', 'ACTIVO', 12, 0)
         `;
 
         db.run(insertQuery, [email, nombre.trim(), puestoFinal, deptFinal, avatar, telFinal, fechaIngreso, numEmpleado], async function(insertErr) {
@@ -437,9 +437,10 @@ router.post('/register-rfc', authRateLimiter, (req, res) => {
             ? (partes[0][0] + partes[1][0]).toUpperCase()
             : partes[0].substring(0, 2).toUpperCase();
 
-        const numEmpleado = `RDL-${Math.floor(100 + Math.random() * 900)}`;
+        const numEmpleado = `FLC-${Math.floor(100 + Math.random() * 900)}`;
         const fechaIngreso = new Date().toISOString().split('T')[0];
-        const rolFinal = (email.includes('rh@') || deptFinal.toLowerCase().includes('recursos humanos')) ? 'RH' : 'ABOGADA_JR';
+        // SEGURIDAD: Nuevos auto-registros siempre obtienen el rol base. No permitir escalada a RH/ADMIN por entrada de usuario.
+        const rolFinal = 'CONTADOR_JR';
 
         const insertQuery = `
             INSERT INTO usuarios (
@@ -549,33 +550,51 @@ router.post('/logout', (req, res) => {
 
 /**
  * GET /api/auth/dev-login
- * Acceso Rápido de Prueba (1 Clic) para Evaluación en Render / Nube:
- * Emite las cookies de sesión con JWT y redirige a la plataforma.
+ * Acceso Rápido de Prueba (1 Clic) para Evaluación de Clientes:
+ * Protegido estrictamente: solo accesible si ENABLE_DEV_LOGIN=true o en entorno local/desarrollo,
+ * y limitado exclusivamente a las cuentas demo preautorizadas.
  */
 router.get('/dev-login', (req, res) => {
-    const role = req.query.role;
-    const email = req.query.email;
-    const rfc = req.query.rfc;
-
-    let query = 'SELECT id, rfc, nombre, email, rol, puesto, departamento, avatar, foto_perfil FROM usuarios WHERE (estatus_laboral = "ACTIVO" OR estatus_laboral IS NULL OR UPPER(estatus_laboral) = "ACTIVO")';
-    let params = [];
-
-    if (rfc) {
-        query += ' AND UPPER(TRIM(rfc)) = UPPER(TRIM(?)) LIMIT 1';
-        params = [rfc];
-    } else if (email) {
-        query += ' AND LOWER(TRIM(email)) = LOWER(TRIM(?)) LIMIT 1';
-        params = [email];
-    } else if (role) {
-        query += ' AND rol = ? LIMIT 1';
-        params = [role];
-    } else {
-        query += ' AND rol = "ADMIN" LIMIT 1';
+    const isDevAllowed = process.env.NODE_ENV !== 'production' || process.env.ENABLE_DEV_LOGIN === 'true';
+    if (!isDevAllowed) {
+        return res.status(403).json({
+            success: false,
+            error: 'El acceso rápido de prueba (dev-login) está deshabilitado en este entorno por motivos de seguridad.'
+        });
     }
 
-    db.get(query, params, (err, usuario) => {
+    const DEMO_ACCOUNTS = {
+        'ADMIN': { email: 'demo@falcont.com.mx', rfc: 'DEMO880101FLC' },
+        'RH': { email: 'rh@falcont.com.mx', rfc: 'COSR880101FLC' },
+        'CONTADOR_SR': { email: 'valeria.falcon@falcont.com.mx', rfc: 'FALV920514FL1' },
+        'CONTADOR_JR': { email: 'denis.ramos@falcont.com.mx', rfc: 'RAMD940612FL2' }
+    };
+
+    let target = null;
+    const reqRole = (req.query.role || '').toUpperCase();
+    const reqEmail = (req.query.email || '').toLowerCase().trim();
+    const reqRfc = (req.query.rfc || '').toUpperCase().trim();
+
+    if (reqEmail) {
+        target = Object.values(DEMO_ACCOUNTS).find(d => d.email.toLowerCase() === reqEmail);
+    } else if (reqRfc) {
+        target = Object.values(DEMO_ACCOUNTS).find(d => d.rfc.toUpperCase() === reqRfc);
+    } else if (reqRole && DEMO_ACCOUNTS[reqRole]) {
+        target = DEMO_ACCOUNTS[reqRole];
+    } else {
+        target = DEMO_ACCOUNTS['ADMIN'];
+    }
+
+    if (!target) {
+        return res.status(403).json({
+            success: false,
+            error: 'Acceso no permitido: dev-login solo está autorizado para perfiles demo institucionales.'
+        });
+    }
+
+    db.get('SELECT id, rfc, nombre, email, rol, puesto, departamento, avatar, foto_perfil FROM usuarios WHERE LOWER(email) = LOWER(?) LIMIT 1', [target.email], (err, usuario) => {
         if (err || !usuario) {
-            console.error('❌ dev-login usuario no encontrado:', err ? err.message : 'No coincide ningún usuario');
+            console.error('❌ dev-login usuario demo no encontrado en BD:', err ? err.message : target.email);
             return res.redirect('/login?error=usuario_no_encontrado');
         }
 
@@ -584,7 +603,7 @@ router.get('/dev-login', (req, res) => {
         res.cookie('falcont_session', jwtToken, getCookieSecurityOptions(req));
         res.cookie('rdl_session', jwtToken, getCookieSecurityOptions(req));
 
-        console.log(`⚡ [DEV LOGIN] Sesión instantánea iniciada como: ${usuario.nombre} (${usuario.rfc || usuario.rol})`);
+        console.log(`⚡ [DEMO LOGIN AUTORIZADO] Sesión demo iniciada como: ${usuario.nombre} (${usuario.rol})`);
         return res.redirect(`/?token=${encodeURIComponent(jwtToken)}`);
     });
 });

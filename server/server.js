@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import db from './config/database.js';
 import authRoutes from './routes/auth.routes.js';
 import { verificarJwt } from './services/auth.service.js';
+import { verificarSesion, requerirRol } from './middlewares/auth.middleware.js';
 import { generateExcelXml, generateCsv } from './utils/excelGenerator.js';
 import { CATALOGO_CAMPOS, buildReportDataset } from './services/reportesService.js';
 
@@ -121,7 +122,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // 1. USUARIOS & FICHA DE PERFIL ESTILO BUK
-app.get('/api/usuarios', (req, res) => {
+app.get('/api/usuarios', verificarSesion, (req, res) => {
     const query = `
         SELECT u.*, 
         (SELECT nombre FROM usuarios WHERE id = u.lider_id) as lider_nombre,
@@ -132,12 +133,21 @@ app.get('/api/usuarios', (req, res) => {
     `;
     db.all(query, [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true, data: rows });
+        const canSeeSalary = ['ADMIN', 'RH', 'ADMIN_RH'].includes(req.user.rol);
+        const data = (rows || []).map(u => {
+            if (!canSeeSalary && u.id !== req.user.id) {
+                const safe = { ...u };
+                delete safe.salario_base;
+                return safe;
+            }
+            return u;
+        });
+        res.json({ success: true, data });
     });
 });
 
 // 1.1 BUSCADOR DE COLABORADORES EN TIEMPO REAL (ESTILO BUK)
-app.get('/api/colaboradores/search', (req, res) => {
+app.get('/api/colaboradores/search', verificarSesion, (req, res) => {
     const queryTerm = (req.query.q || '').trim();
     let sql = `
         SELECT u.id, u.nombre, u.email, u.rol, u.puesto, u.departamento, u.avatar, u.foto_perfil, u.telefono,
@@ -199,8 +209,8 @@ app.get('/api/colaboradores/search', (req, res) => {
 });
 
 // 1.2 OBTENER FICHA COMPLETA DE COLABORADOR POR ID (ESTILO BUK)
-app.get('/api/colaboradores/:id', (req, res) => {
-    const userId = req.params.id;
+app.get('/api/colaboradores/:id', verificarSesion, (req, res) => {
+    const userId = parseInt(req.params.id, 10);
     db.get(`
         SELECT u.*, 
                (SELECT nombre FROM usuarios WHERE id = u.lider_id) as lider_nombre,
@@ -209,6 +219,11 @@ app.get('/api/colaboradores/:id', (req, res) => {
         WHERE u.id = ?
     `, [userId], (err, user) => {
         if (err || !user) return res.status(404).json({ error: 'Colaborador no encontrado' });
+
+        const canSeeSalary = ['ADMIN', 'RH', 'ADMIN_RH'].includes(req.user.rol) || (req.user.id === userId);
+        if (!canSeeSalary) {
+            delete user.salario_base;
+        }
 
         db.all('SELECT * FROM metas_empleado WHERE usuario_id = ? ORDER BY id ASC', [userId], (err, metas) => {
             const userMetas = metas || [];
@@ -249,24 +264,31 @@ app.get('/api/colaboradores/:id', (req, res) => {
 });
 
 // 1.3 ACTUALIZAR DATOS GENERALES DE COLABORADOR (FICHA BUK)
-app.put('/api/colaboradores/:id', (req, res) => {
-    const userId = req.params.id;
+app.put('/api/colaboradores/:id', verificarSesion, (req, res) => {
+    const userId = parseInt(req.params.id, 10);
+    const isSelf = req.user.id === userId;
+    const isHrOrAdmin = ['ADMIN', 'RH', 'ADMIN_RH'].includes(req.user.rol);
+
+    if (!isSelf && !isHrOrAdmin) {
+        return res.status(403).json({ error: 'No tienes permisos para modificar este perfil.' });
+    }
+
     const { nombre, puesto, departamento, telefono, fecha_ingreso, tipo_contrato, numero_empleado, salario_base, estatus_laboral, rfc, lider_id } = req.body;
 
     db.get('SELECT * FROM usuarios WHERE id = ?', [userId], (err, existing) => {
         if (err || !existing) return res.status(404).json({ error: 'Colaborador no encontrado' });
 
-        const updatedNombre = nombre || existing.nombre;
-        const updatedPuesto = puesto || existing.puesto;
-        const updatedDept = departamento || existing.departamento;
+        const updatedNombre = isHrOrAdmin ? (nombre || existing.nombre) : existing.nombre;
+        const updatedPuesto = isHrOrAdmin ? (puesto || existing.puesto) : existing.puesto;
+        const updatedDept = isHrOrAdmin ? (departamento || existing.departamento) : existing.departamento;
         const updatedTel = telefono !== undefined ? telefono : existing.telefono;
-        const updatedFecha = fecha_ingreso || existing.fecha_ingreso;
-        const updatedContrato = tipo_contrato || existing.tipo_contrato;
-        const updatedNumEmp = numero_empleado || existing.numero_empleado;
-        const updatedSalario = salario_base || existing.salario_base;
-        const updatedEstatus = estatus_laboral || existing.estatus_laboral;
-        const updatedRfc = rfc !== undefined ? (rfc ? rfc.trim().toUpperCase() : null) : existing.rfc;
-        const updatedLider = lider_id !== undefined ? (lider_id ? parseInt(lider_id, 10) : null) : existing.lider_id;
+        const updatedFecha = isHrOrAdmin ? (fecha_ingreso || existing.fecha_ingreso) : existing.fecha_ingreso;
+        const updatedContrato = isHrOrAdmin ? (tipo_contrato || existing.tipo_contrato) : existing.tipo_contrato;
+        const updatedNumEmp = isHrOrAdmin ? (numero_empleado || existing.numero_empleado) : existing.numero_empleado;
+        const updatedSalario = isHrOrAdmin ? (salario_base !== undefined ? salario_base : existing.salario_base) : existing.salario_base;
+        const updatedEstatus = isHrOrAdmin ? (estatus_laboral || existing.estatus_laboral) : existing.estatus_laboral;
+        const updatedRfc = isHrOrAdmin ? (rfc !== undefined ? (rfc ? rfc.trim().toUpperCase() : null) : existing.rfc) : existing.rfc;
+        const updatedLider = isHrOrAdmin ? (lider_id !== undefined ? (lider_id ? parseInt(lider_id, 10) : null) : existing.lider_id) : existing.lider_id;
 
         const avatarTxt = updatedNombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
@@ -284,39 +306,59 @@ app.put('/api/colaboradores/:id', (req, res) => {
                 FROM usuarios u 
                 WHERE u.id = ?
             `, [userId], (err, updatedUser) => {
-                io.emit('usuario:perfil_actualizado', updatedUser);
-                res.json({ success: true, data: updatedUser });
+                const broadcastUser = { ...updatedUser };
+                delete broadcastUser.salario_base;
+                io.emit('usuario:perfil_actualizado', broadcastUser);
+
+                const returnedUser = { ...updatedUser };
+                if (!isHrOrAdmin && !isSelf) delete returnedUser.salario_base;
+                res.json({ success: true, data: returnedUser });
             });
         });
     });
 });
 
 // 1.4 SUBIR / ACTUALIZAR FOTO DE PERFIL (BASE64 O URL)
-app.post('/api/colaboradores/:id/foto', (req, res) => {
-    const userId = req.params.id;
-    const { foto_perfil } = req.body;
+app.post('/api/colaboradores/:id/foto', verificarSesion, (req, res) => {
+    const userId = parseInt(req.params.id, 10);
+    const isSelf = req.user.id === userId;
+    const isHrOrAdmin = ['ADMIN', 'RH', 'ADMIN_RH'].includes(req.user.rol);
 
+    if (!isSelf && !isHrOrAdmin) {
+        return res.status(403).json({ error: 'No tienes permisos para modificar la foto de este colaborador.' });
+    }
+
+    const { foto_perfil } = req.body;
     if (!foto_perfil) {
         return res.status(400).json({ error: 'No se envió ninguna foto de perfil.' });
+    }
+
+    if (!foto_perfil.startsWith('data:image/') && !foto_perfil.startsWith('http://') && !foto_perfil.startsWith('https://')) {
+        return res.status(400).json({ error: 'Formato de imagen inválido.' });
     }
 
     db.run('UPDATE usuarios SET foto_perfil = ? WHERE id = ?', [foto_perfil, userId], function(err) {
         if (err) return res.status(500).json({ error: err.message });
 
         db.get('SELECT *, (dias_vacaciones_totales - dias_vacaciones_tomados) as dias_vacaciones_restantes FROM usuarios WHERE id = ?', [userId], (err, updatedUser) => {
-            io.emit('usuario:perfil_actualizado', updatedUser);
-            res.json({ success: true, data: updatedUser });
+            const broadcastUser = { ...updatedUser };
+            delete broadcastUser.salario_base;
+            io.emit('usuario:perfil_actualizado', broadcastUser);
+            res.json({ success: true, data: broadcastUser });
         });
     });
 });
 
-app.post('/api/usuarios', (req, res) => {
+app.post('/api/usuarios', verificarSesion, requerirRol('ADMIN', 'RH', 'ADMIN_RH'), (req, res) => {
     const { nombre, rol, puesto, email, dias_vacaciones_totales, telefono, fecha_ingreso, tipo_contrato, numero_empleado } = req.body;
     if (!nombre || !rol || !email) {
         return res.status(400).json({ error: 'Nombre, rol y correo electrónico son requeridos.' });
     }
 
     const avatarTxt = nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanNombre = nombre.trim();
+    const numEmp = numero_empleado || `FLC-0${Math.floor(Math.random() * 90) + 10}`;
 
     const stmt = db.prepare(`
         INSERT INTO usuarios (email, nombre, rol, puesto, departamento, avatar, telefono, fecha_ingreso, tipo_contrato, numero_empleado, dias_vacaciones_totales, dias_vacaciones_tomados)
@@ -324,10 +366,9 @@ app.post('/api/usuarios', (req, res) => {
     `);
 
     stmt.run([
-        email, nombre, rol, puesto || 'Colaboradora RDL', 'Legal & Talent', avatarTxt,
-        telefono || '+52 (55) 5482-9000', fecha_ingreso || '2026-01-15', tipo_contrato || 'Tiempo Indeterminado',
-        numero_empleado || `RDL-0${Math.floor(Math.random() * 90) + 10}`,
-        dias_vacaciones_totales || 12
+        cleanEmail, cleanNombre, rol, puesto || 'Contador Jr', 'Contabilidad & Auditoría', avatarTxt,
+        telefono || '+52 (55) 5500-9000', fecha_ingreso || new Date().toISOString().split('T')[0], tipo_contrato || 'Tiempo Indeterminado',
+        numEmp, dias_vacaciones_totales || 12
     ], function (err) {
         if (err) {
             return res.status(500).json({ error: 'El usuario ya existe o error en base de datos: ' + err.message });
@@ -335,33 +376,33 @@ app.post('/api/usuarios', (req, res) => {
 
         const nuevoUsuario = {
             id: this.lastID,
-            email,
-            nombre,
+            email: cleanEmail,
+            nombre: cleanNombre,
             rol,
-            puesto: puesto || 'Colaboradora RDL',
-            departamento: 'Legal & Talent',
+            puesto: puesto || 'Contador Jr',
+            departamento: 'Contabilidad & Auditoría',
             avatar: avatarTxt,
-            telefono: telefono || '+52 (55) 5482-9000',
-            fecha_ingreso: fecha_ingreso || '2026-01-15',
+            telefono: telefono || '+52 (55) 5500-9000',
+            fecha_ingreso: fecha_ingreso || new Date().toISOString().split('T')[0],
             tipo_contrato: tipo_contrato || 'Tiempo Indeterminado',
-            numero_empleado: numero_empleado || 'RDL-099',
+            numero_empleado: numEmp,
             dias_vacaciones_totales: dias_vacaciones_totales || 12,
             dias_vacaciones_tomados: 0,
             dias_vacaciones_restantes: dias_vacaciones_totales || 12
         };
 
-        // Insertar metas por defecto con ponderación de 100%
+        // Insertar metas contables por defecto con ponderación de 100%
         db.run(`
             INSERT INTO metas_empleado (usuario_id, titulo, descripcion, indicador, peso, porcentaje_avance, categoria, fecha_limite, estatus) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             this.lastID,
-            'Integración de Expedientes Iniciales',
-            'Verificar y completar la documentación de ingreso de nuevos colaboradores.',
-            '100% de expedientes validados y archivados',
+            'Cierre Mensual y Conciliaciones SAT',
+            'Completar el cierre mensual y conciliar estados de cuenta bancarios con CFDI 4.0.',
+            '100% de conciliaciones en tiempo y forma',
             50.0,
             60.0,
-            'Caso Legal',
+            'Contabilidad',
             '2026-10-31',
             'EN_PROGRESO'
         ], () => {
@@ -370,9 +411,9 @@ app.post('/api/usuarios', (req, res) => {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `, [
                 this.lastID,
-                'Capacitación y Cumplimiento Normativo',
-                'Acreditación en protocolos legales internos y NOMs aplicables.',
-                'Aprobación de módulos de inducción RDL',
+                'Capacitación y Cumplimiento de Miscelánea Fiscal',
+                'Acreditación en normativas SAT y protocolos contables de FALCONT.',
+                'Aprobación de módulos técnicos contables',
                 50.0,
                 80.0,
                 'Capacitación',
@@ -395,16 +436,8 @@ app.post('/api/login', (req, res) => {
 });
 
 // 2. MURO ESTILO FACEBOOK (FEED)
-app.get('/api/feed', (req, res) => {
-    let usuarioId = req.query.usuario_id;
-    if (!usuarioId) {
-        const token = (req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session)) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
-        if (token) {
-            const decoded = verificarJwt(token);
-            if (decoded) usuarioId = decoded.id;
-        }
-    }
-    const userIdNum = usuarioId ? parseInt(usuarioId, 10) : 0;
+app.get('/api/feed', verificarSesion, (req, res) => {
+    const userIdNum = req.user.id;
 
     const query = `
         SELECT f.*, 
@@ -419,11 +452,29 @@ app.get('/api/feed', (req, res) => {
     });
 });
 
-app.post('/api/feed', (req, res) => {
-    const { autor_id, autor_nombre, autor_rol, autor_avatar, titulo, contenido, categoria, imagen_url } = req.body;
-
-    if (autor_rol !== 'ADMIN' && autor_rol !== 'CONTADOR_SR' && autor_rol !== 'ABOGADA_SR' && autor_rol !== 'RH' && autor_rol !== 'ADMIN_RH') {
+app.post('/api/feed', verificarSesion, (req, res) => {
+    const allowedRoles = ['ADMIN', 'CONTADOR_SR', 'ABOGADA_SR', 'RH', 'ADMIN_RH'];
+    if (!allowedRoles.includes(req.user.rol)) {
         return res.status(403).json({ error: 'Permisos insuficientes. Solo Dirección, Gerencia y Recursos Humanos pueden publicar comunicados oficiales.' });
+    }
+
+    const { titulo, contenido, categoria, imagen_url } = req.body;
+    if (!contenido || !contenido.trim()) {
+        return res.status(400).json({ error: 'El contenido del comunicado no puede estar vacío.' });
+    }
+
+    // Identidad asegurada desde el token JWT para evitar suplantación de identidad
+    const autor_id = req.user.id;
+    const autor_nombre = req.user.nombre;
+    const autor_rol = req.user.rol;
+    const autor_avatar = req.user.avatar || autor_nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+    // Saneamiento seguro de imagen adjunta
+    let safeImageUrl = null;
+    if (imagen_url && typeof imagen_url === 'string') {
+        if (imagen_url.startsWith('data:image/') || imagen_url.startsWith('http://') || imagen_url.startsWith('https://')) {
+            safeImageUrl = imagen_url;
+        }
     }
 
     const stmt = db.prepare(`
@@ -431,12 +482,16 @@ app.post('/api/feed', (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run([autor_id, autor_nombre, autor_rol, autor_avatar || 'RDL', titulo || '', contenido, categoria || 'Corporativo', imagen_url || null], function (err) {
+    stmt.run([autor_id, autor_nombre, autor_rol, autor_avatar, (titulo || '').trim(), contenido.trim(), categoria || 'Corporativo', safeImageUrl], function (err) {
         if (err) return res.status(500).json({ error: err.message });
 
         const nuevoPost = {
             id: this.lastID,
-            autor_id, autor_nombre, autor_rol, autor_avatar, titulo, contenido, categoria, imagen_url: imagen_url || null,
+            autor_id, autor_nombre, autor_rol, autor_avatar,
+            titulo: (titulo || '').trim(),
+            contenido: contenido.trim(),
+            categoria: categoria || 'Corporativo',
+            imagen_url: safeImageUrl,
             likes_count: 0, comentarios_count: 0, fecha_creacion: new Date().toISOString()
         };
 
@@ -446,23 +501,9 @@ app.post('/api/feed', (req, res) => {
 });
 
 // Reacción en Muro con Control Estricto de 1 solo Like por usuario (Toggle On/Off)
-app.post('/api/feed/:id/like', (req, res) => {
-    const postID = req.params.id;
-    let usuarioId = req.body && req.body.usuario_id;
-
-    if (!usuarioId) {
-        const token = (req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session)) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
-        if (token) {
-            const decoded = verificarJwt(token);
-            if (decoded) usuarioId = decoded.id;
-        }
-    }
-
-    if (!usuarioId) {
-        return res.status(401).json({ success: false, error: 'Debes iniciar sesión para reaccionar a esta publicación.' });
-    }
-
-    usuarioId = parseInt(usuarioId, 10);
+app.post('/api/feed/:id/like', verificarSesion, (req, res) => {
+    const postID = parseInt(req.params.id, 10);
+    const usuarioId = req.user.id;
 
     // Verificar si el usuario ya dio like previamente a esta publicación
     db.get('SELECT id FROM feed_likes WHERE publicacion_id = ? AND usuario_id = ? LIMIT 1', [postID, usuarioId], (checkErr, existingLike) => {
@@ -477,8 +518,8 @@ app.post('/api/feed/:id/like', (req, res) => {
                     if (updateErr) return res.status(500).json({ error: updateErr.message });
 
                     db.get('SELECT id, likes_count FROM feed_publicaciones WHERE id = ?', [postID], (err, row) => {
-                        const updated = row || { id: parseInt(postID, 10), likes_count: 0 };
-                        io.emit('feed:like_actualizado', { id: parseInt(postID, 10), likes_count: updated.likes_count, liked: false, usuario_id: usuarioId });
+                        const updated = row || { id: postID, likes_count: 0 };
+                        io.emit('feed:like_actualizado', { id: postID, likes_count: updated.likes_count, liked: false, usuario_id: usuarioId });
                         res.json({ success: true, liked: false, data: updated });
                     });
                 });
@@ -492,8 +533,8 @@ app.post('/api/feed/:id/like', (req, res) => {
                     if (updateErr) return res.status(500).json({ error: updateErr.message });
 
                     db.get('SELECT id, likes_count FROM feed_publicaciones WHERE id = ?', [postID], (err, row) => {
-                        const updated = row || { id: parseInt(postID, 10), likes_count: 1 };
-                        io.emit('feed:like_actualizado', { id: parseInt(postID, 10), likes_count: updated.likes_count, liked: true, usuario_id: usuarioId });
+                        const updated = row || { id: postID, likes_count: 1 };
+                        io.emit('feed:like_actualizado', { id: postID, likes_count: updated.likes_count, liked: true, usuario_id: usuarioId });
                         res.json({ success: true, liked: true, data: updated });
                     });
                 });
@@ -506,8 +547,8 @@ app.post('/api/feed/:id/like', (req, res) => {
 // COMENTARIOS EN EL MURO CORPORATIVO (HABILITADO PARA TODOS LOS ROLES)
 // ============================================================
 // Obtener todos los comentarios de una publicación
-app.get('/api/feed/:id/comentarios', (req, res) => {
-    const postID = req.params.id;
+app.get('/api/feed/:id/comentarios', verificarSesion, (req, res) => {
+    const postID = parseInt(req.params.id, 10);
     const query = `
         SELECT c.*, u.puesto as autor_puesto, u.rol as autor_rol, u.departamento as autor_departamento
         FROM feed_comentarios c
@@ -521,70 +562,47 @@ app.get('/api/feed/:id/comentarios', (req, res) => {
     });
 });
 
-// Agregar nuevo comentario (Habilitado para TODOS los perfiles)
-app.post('/api/feed/:id/comentarios', (req, res) => {
+// Agregar nuevo comentario (Habilitado para TODOS los perfiles autenticados)
+app.post('/api/feed/:id/comentarios', verificarSesion, (req, res) => {
     const postID = parseInt(req.params.id, 10);
-    const { autor_id, autor_nombre, autor_avatar, comentario } = req.body || {};
+    const { comentario } = req.body || {};
 
     if (!comentario || typeof comentario !== 'string' || !comentario.trim()) {
         return res.status(400).json({ success: false, error: 'El comentario no puede estar vacío.' });
     }
 
-    let userId = autor_id;
-    let userName = autor_nombre;
-    let userAvatar = autor_avatar;
-
-    // Si no vienen en el body, intentar obtener del token de sesión
-    if (!userId) {
-        const token = (req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session)) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
-        if (token) {
-            const decoded = verificarJwt(token);
-            if (decoded) {
-                userId = decoded.id;
-                userName = userName || decoded.nombre;
-                userAvatar = userAvatar || decoded.avatar;
-            }
-        }
-    }
-
-    if (!userId) {
-        return res.status(401).json({ success: false, error: 'Debes iniciar sesión para comentar.' });
-    }
-
+    const userId = req.user.id;
+    const userName = req.user.nombre;
+    const userAvatar = req.user.avatar || userName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     const cleanComment = comentario.trim();
 
-    // Obtener datos del usuario para autor_nombre y autor_avatar si faltan
-    db.get('SELECT id, nombre, avatar, puesto, rol FROM usuarios WHERE id = ?', [userId], (uErr, user) => {
-        const finalNombre = userName || (user ? user.nombre : 'Colaborador RDL');
-        const finalAvatar = userAvatar || (user ? user.avatar : 'RD');
-        const finalPuesto = user ? user.puesto : 'Colaborador';
-        const finalRol = user ? user.rol : 'CORPORATIVO';
+    db.get('SELECT puesto, rol FROM usuarios WHERE id = ?', [userId], (uErr, user) => {
+        const finalPuesto = user ? user.puesto : (req.user.puesto || 'Colaborador');
+        const finalRol = user ? user.rol : (req.user.rol || 'CORPORATIVO');
 
         const stmt = db.prepare(`
             INSERT INTO feed_comentarios (publicacion_id, autor_id, autor_nombre, autor_avatar, comentario)
             VALUES (?, ?, ?, ?, ?)
         `);
 
-        stmt.run([postID, userId, finalNombre, finalAvatar, cleanComment], function (err) {
+        stmt.run([postID, userId, userName, userAvatar, cleanComment], function (err) {
             if (err) return res.status(500).json({ success: false, error: err.message });
 
             const nuevoComentario = {
                 id: this.lastID,
                 publicacion_id: postID,
                 autor_id: userId,
-                autor_nombre: finalNombre,
-                autor_avatar: finalAvatar,
+                autor_nombre: userName,
+                autor_avatar: userAvatar,
                 autor_puesto: finalPuesto,
                 autor_rol: finalRol,
                 comentario: cleanComment,
                 fecha: new Date().toISOString()
             };
 
-            // Obtener conteo actualizado de comentarios
             db.get('SELECT COUNT(*) as count FROM feed_comentarios WHERE publicacion_id = ?', [postID], (cErr, cRow) => {
                 const totalComentarios = cRow ? cRow.count : 1;
 
-                // Notificar en tiempo real a todas las computadoras conectadas
                 io.emit('feed:nuevo_comentario', {
                     publicacion_id: postID,
                     comentario: nuevoComentario,
@@ -602,8 +620,8 @@ app.post('/api/feed/:id/comentarios', (req, res) => {
 });
 
 // 3. MÓDULO DE METAS PONDERADAS (PESOS = 100%, INDICADORES, AVANCE)
-app.get('/api/metas/:usuario_id', (req, res) => {
-    const usuarioId = req.params.usuario_id;
+app.get('/api/metas/:usuario_id', verificarSesion, (req, res) => {
+    const usuarioId = parseInt(req.params.usuario_id, 10);
     db.all('SELECT * FROM metas_empleado WHERE usuario_id = ? ORDER BY id ASC', [usuarioId], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
 
@@ -632,11 +650,19 @@ app.get('/api/metas/:usuario_id', (req, res) => {
     });
 });
 
-app.post('/api/metas', (req, res) => {
+app.post('/api/metas', verificarSesion, (req, res) => {
     const { usuario_id, titulo, descripcion, indicador, peso, porcentaje_avance, categoria, fecha_limite, estatus } = req.body;
 
     if (!usuario_id || !titulo) {
         return res.status(400).json({ error: 'El ID de usuario y el título de la meta son obligatorios.' });
+    }
+
+    const targetUserId = parseInt(usuario_id, 10);
+    const isHrOrAdmin = ['ADMIN', 'RH', 'ADMIN_RH', 'CONTADOR_SR', 'ABOGADA_SR'].includes(req.user.rol);
+    const isSelf = req.user.id === targetUserId;
+
+    if (!isHrOrAdmin && !isSelf) {
+        return res.status(403).json({ error: 'No tienes permisos para crear metas para este colaborador.' });
     }
 
     const stmt = db.prepare(`
@@ -645,13 +671,13 @@ app.post('/api/metas', (req, res) => {
     `);
 
     stmt.run([
-        usuario_id,
-        titulo,
+        targetUserId,
+        titulo.trim(),
         descripcion || '',
         indicador || 'Cumplimiento de objetivos',
         parseFloat(peso) || 25.0,
         parseFloat(porcentaje_avance) || 0.0,
-        categoria || 'Caso Legal',
+        categoria || 'Contabilidad',
         fecha_limite || '2026-12-31',
         estatus || 'EN_PROGRESO'
     ], function (err) {
@@ -659,28 +685,34 @@ app.post('/api/metas', (req, res) => {
 
         const nuevaMeta = {
             id: this.lastID,
-            usuario_id,
-            titulo,
+            usuario_id: targetUserId,
+            titulo: titulo.trim(),
             descripcion: descripcion || '',
             indicador: indicador || 'Cumplimiento de objetivos',
             peso: parseFloat(peso) || 25.0,
             porcentaje_avance: parseFloat(porcentaje_avance) || 0.0,
-            categoria: categoria || 'Caso Legal',
+            categoria: categoria || 'Contabilidad',
             fecha_limite: fecha_limite || '2026-12-31',
             estatus: estatus || 'EN_PROGRESO'
         };
 
-        io.emit('metas:actualizadas', { usuario_id, action: 'create', meta: nuevaMeta });
+        io.emit('metas:actualizadas', { usuario_id: targetUserId, action: 'create', meta: nuevaMeta });
         res.json({ success: true, data: nuevaMeta });
     });
 });
 
-app.put('/api/metas/:id', (req, res) => {
-    const metaId = req.params.id;
+app.put('/api/metas/:id', verificarSesion, (req, res) => {
+    const metaId = parseInt(req.params.id, 10);
     const { titulo, descripcion, indicador, peso, porcentaje_avance, categoria, fecha_limite, estatus } = req.body;
 
     db.get('SELECT * FROM metas_empleado WHERE id = ?', [metaId], (err, existing) => {
         if (err || !existing) return res.status(404).json({ error: 'Meta no encontrada.' });
+
+        const isHrOrAdmin = ['ADMIN', 'RH', 'ADMIN_RH', 'CONTADOR_SR', 'ABOGADA_SR'].includes(req.user.rol);
+        const isOwner = req.user.id === existing.usuario_id;
+        if (!isHrOrAdmin && !isOwner) {
+            return res.status(403).json({ error: 'No tienes permisos para editar esta meta.' });
+        }
 
         const updatedTitulo = titulo !== undefined ? titulo : existing.titulo;
         const updatedDesc = descripcion !== undefined ? descripcion : existing.descripcion;
@@ -699,7 +731,7 @@ app.put('/api/metas/:id', (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
 
             const updatedMeta = {
-                id: parseInt(metaId, 10),
+                id: metaId,
                 usuario_id: existing.usuario_id,
                 titulo: updatedTitulo,
                 descripcion: updatedDesc,
@@ -717,11 +749,17 @@ app.put('/api/metas/:id', (req, res) => {
     });
 });
 
-app.delete('/api/metas/:id', (req, res) => {
-    const metaId = req.params.id;
+app.delete('/api/metas/:id', verificarSesion, (req, res) => {
+    const metaId = parseInt(req.params.id, 10);
 
     db.get('SELECT * FROM metas_empleado WHERE id = ?', [metaId], (err, existing) => {
         if (err || !existing) return res.status(404).json({ error: 'Meta no encontrada.' });
+
+        const isHrOrAdmin = ['ADMIN', 'RH', 'ADMIN_RH', 'CONTADOR_SR', 'ABOGADA_SR'].includes(req.user.rol);
+        const isOwner = req.user.id === existing.usuario_id;
+        if (!isHrOrAdmin && !isOwner) {
+            return res.status(403).json({ error: 'No tienes permisos para eliminar esta meta.' });
+        }
 
         db.run('DELETE FROM metas_empleado WHERE id = ?', [metaId], function(err) {
             if (err) return res.status(500).json({ error: err.message });
@@ -732,12 +770,18 @@ app.delete('/api/metas/:id', (req, res) => {
     });
 });
 
-app.post('/api/metas/:id/avance', (req, res) => {
-    const metaId = req.params.id;
+app.post('/api/metas/:id/avance', verificarSesion, (req, res) => {
+    const metaId = parseInt(req.params.id, 10);
     const { porcentaje_avance } = req.body;
 
     db.get('SELECT * FROM metas_empleado WHERE id = ?', [metaId], (err, existing) => {
         if (err || !existing) return res.status(404).json({ error: 'Meta no encontrada.' });
+
+        const isHrOrAdmin = ['ADMIN', 'RH', 'ADMIN_RH', 'CONTADOR_SR', 'ABOGADA_SR'].includes(req.user.rol);
+        const isOwner = req.user.id === existing.usuario_id;
+        if (!isHrOrAdmin && !isOwner) {
+            return res.status(403).json({ error: 'No tienes permisos para modificar el avance de esta meta.' });
+        }
 
         const avance = Math.min(100, Math.max(0, parseFloat(porcentaje_avance) || 0));
         let estatus = existing.estatus;
@@ -755,33 +799,42 @@ app.post('/api/metas/:id/avance', (req, res) => {
 });
 
 // 4. INCIDENCIAS, VACACIONES Y PERMISOS DE AUSENCIA
-app.get('/api/incidencias', (req, res) => {
-    const query = `
+app.get('/api/incidencias', verificarSesion, (req, res) => {
+    const isHrOrAdmin = ['ADMIN', 'RH', 'ADMIN_RH', 'CONTADOR_SR', 'ABOGADA_SR'].includes(req.user.rol);
+    let query = `
         SELECT i.*, 
                (SELECT nombre FROM usuarios WHERE id = i.lider_id) as lider_nombre
         FROM incidencias_vacaciones i 
-        ORDER BY i.fecha_solicitud DESC
     `;
-    db.all(query, [], (err, rows) => {
+    let params = [];
+    if (!isHrOrAdmin) {
+        query += ` WHERE i.usuario_id = ? OR i.lider_id = ? `;
+        params = [req.user.id, req.user.id];
+    }
+    query += ` ORDER BY i.fecha_solicitud DESC `;
+
+    db.all(query, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, data: rows });
     });
 });
 
-app.post('/api/incidencias', (req, res) => {
+app.post('/api/incidencias', verificarSesion, (req, res) => {
+    const isHrOrAdmin = ['ADMIN', 'RH', 'ADMIN_RH'].includes(req.user.rol);
+    const targetUserId = (isHrOrAdmin && req.body.usuario_id) ? parseInt(req.body.usuario_id, 10) : req.user.id;
+
     const {
-        usuario_id, usuario_nombre, usuario_rol,
         tipo, subtipo, fecha_inicio, fecha_fin,
         hora_inicio, hora_fin, horas_solicitadas,
         dias_solicitados, motivo, lider_id
     } = req.body;
 
-    if (!usuario_id || !motivo) {
+    if (!motivo || !fecha_inicio) {
         return res.status(400).json({ error: 'Faltan datos obligatorios para la solicitud.' });
     }
 
     // Buscar información del colaborador para saber su líder directo asignado
-    db.get('SELECT id, nombre, rol, avatar, lider_id, dias_vacaciones_totales, dias_vacaciones_tomados FROM usuarios WHERE id = ?', [usuario_id], (uErr, user) => {
+    db.get('SELECT id, nombre, rol, avatar, lider_id, dias_vacaciones_totales, dias_vacaciones_tomados FROM usuarios WHERE id = ?', [targetUserId], (uErr, user) => {
         if (uErr || !user) {
             return res.status(404).json({ error: 'Colaborador solicitante no encontrado.' });
         }
@@ -828,9 +881,9 @@ app.post('/api/incidencias', (req, res) => {
             `;
 
             db.run(insertSql, [
-                usuario_id,
-                user.nombre || usuario_nombre,
-                user.rol || usuario_rol,
+                targetUserId,
+                user.nombre,
+                user.rol,
                 tipoFinal,
                 subtipoFinal,
                 fecha_inicio,
@@ -872,7 +925,7 @@ app.post('/api/incidencias', (req, res) => {
 
                 const nuevaSolicitud = {
                     id: nuevaSolicitudId,
-                    usuario_id,
+                    usuario_id: targetUserId,
                     usuario_nombre: user.nombre,
                     usuario_rol: user.rol,
                     tipo: tipoFinal,
@@ -898,7 +951,7 @@ app.post('/api/incidencias', (req, res) => {
                     `;
                     db.run(notifSql, [
                         targetLeaderId,
-                        usuario_id,
+                        targetUserId,
                         user.nombre,
                         user.avatar || user.nombre.substring(0, 2).toUpperCase(),
                         notifTitulo,
@@ -908,7 +961,7 @@ app.post('/api/incidencias', (req, res) => {
                         const notifObj = {
                             id: this ? this.lastID : Date.now(),
                             usuario_id: targetLeaderId,
-                            remitente_id: usuario_id,
+                            remitente_id: targetUserId,
                             remitente_nombre: user.nombre,
                             remitente_avatar: user.avatar,
                             tipo: 'SOLICITUD_AUSENCIA',
@@ -931,23 +984,30 @@ app.post('/api/incidencias', (req, res) => {
     });
 });
 
-app.put('/api/incidencias/:id/aprobar', (req, res) => {
-    const { estatus, aprobado_por, rol_aprobador, aprobador_id } = req.body;
-    const incID = req.params.id;
+app.put('/api/incidencias/:id/aprobar', verificarSesion, (req, res) => {
+    const { estatus } = req.body;
+    const incID = parseInt(req.params.id, 10);
+
+    if (!['APROBADO', 'RECHAZADO'].includes(estatus)) {
+        return res.status(400).json({ error: 'Estatus de resolución inválido.' });
+    }
 
     db.get('SELECT * FROM incidencias_vacaciones WHERE id = ?', [incID], (err, inc) => {
         if (err || !inc) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
-        const canApprove = (aprobador_id && inc.lider_id && parseInt(aprobador_id, 10) === parseInt(inc.lider_id, 10)) ||
-                           ['ADMIN', 'ABOGADA_SR', 'RH', 'ADMIN_RH'].includes(rol_aprobador);
+        const isDirectLeader = inc.lider_id && parseInt(req.user.id, 10) === parseInt(inc.lider_id, 10);
+        const isAuthorizedRole = ['ADMIN', 'ABOGADA_SR', 'CONTADOR_SR', 'RH', 'ADMIN_RH'].includes(req.user.rol);
 
-        if (!canApprove) {
+        if (!isDirectLeader && !isAuthorizedRole) {
             return res.status(403).json({ error: 'No tienes permisos para autorizar esta solicitud. Solo el líder directo asignado o Recursos Humanos pueden hacerlo.' });
         }
 
+        const aprobado_por = req.user.nombre || 'Líder / RH FALCONT';
+        const aprobador_id = req.user.id;
+
         db.run(
             'UPDATE incidencias_vacaciones SET estatus = ?, aprobado_por = ? WHERE id = ?',
-            [estatus, aprobado_por || 'Líder / RH RDL', incID],
+            [estatus, aprobado_por, incID],
             function (updateErr) {
                 if (updateErr) return res.status(500).json({ error: updateErr.message });
 
@@ -968,16 +1028,16 @@ app.put('/api/incidencias/:id/aprobar', (req, res) => {
 
                 // Notificar al colaborador solicitante de la resolución
                 const notifTitulo = `Solicitud ${estatus === 'APROBADO' ? 'Aprobada ✅' : 'Rechazada ❌'}`;
-                const notifMensaje = `Tu solicitud de ${inc.tipo} (${inc.subtipo || ''}) fue ${estatus === 'APROBADO' ? 'APROBADA' : 'RECHAZADA'} por ${aprobado_por || 'tu líder'}.`;
+                const notifMensaje = `Tu solicitud de ${inc.tipo} (${inc.subtipo || ''}) fue ${estatus === 'APROBADO' ? 'APROBADA' : 'RECHAZADA'} por ${aprobado_por}.`;
 
                 const notifSql = `
                     INSERT INTO notificaciones (usuario_id, remitente_id, remitente_nombre, remitente_avatar, tipo, titulo, mensaje, referencia_id, leido)
-                    VALUES (?, ?, ?, 'RDL', 'RESOLUCION_AUSENCIA', ?, ?, ?, 0)
+                    VALUES (?, ?, ?, 'FL', 'RESOLUCION_AUSENCIA', ?, ?, ?, 0)
                 `;
                 db.run(notifSql, [
                     inc.usuario_id,
-                    aprobador_id || 0,
-                    aprobado_por || 'Líder Directo',
+                    aprobador_id,
+                    aprobado_por,
                     notifTitulo,
                     notifMensaje,
                     incID
@@ -1005,19 +1065,8 @@ app.put('/api/incidencias/:id/aprobar', (req, res) => {
 });
 
 // 5. MÓDULO DE NOTIFICACIONES
-app.get('/api/notificaciones', (req, res) => {
-    let usuarioId = req.query.usuario_id;
-    if (!usuarioId) {
-        const token = (req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session)) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
-        if (token) {
-            const decoded = verificarJwt(token);
-            if (decoded) usuarioId = decoded.id;
-        }
-    }
-
-    if (!usuarioId) {
-        return res.status(401).json({ success: false, error: 'Debes iniciar sesión para consultar tus notificaciones.' });
-    }
+app.get('/api/notificaciones', verificarSesion, (req, res) => {
+    const usuarioId = req.user.id;
 
     const query = `
         SELECT * FROM notificaciones 
@@ -1032,28 +1081,17 @@ app.get('/api/notificaciones', (req, res) => {
     });
 });
 
-app.put('/api/notificaciones/:id/leer', (req, res) => {
-    const notifId = req.params.id;
-    db.run('UPDATE notificaciones SET leido = 1 WHERE id = ?', [notifId], function (err) {
+app.put('/api/notificaciones/:id/leer', verificarSesion, (req, res) => {
+    const notifId = parseInt(req.params.id, 10);
+    const usuarioId = req.user.id;
+    db.run('UPDATE notificaciones SET leido = 1 WHERE id = ? AND usuario_id = ?', [notifId, usuarioId], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
     });
 });
 
-app.put('/api/notificaciones/marcar-todas', (req, res) => {
-    let usuarioId = req.body && req.body.usuario_id;
-    if (!usuarioId) {
-        const token = (req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session)) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
-        if (token) {
-            const decoded = verificarJwt(token);
-            if (decoded) usuarioId = decoded.id;
-        }
-    }
-
-    if (!usuarioId) {
-        return res.status(401).json({ success: false, error: 'No autenticado.' });
-    }
-
+app.put('/api/notificaciones/marcar-todas', verificarSesion, (req, res) => {
+    const usuarioId = req.user.id;
     db.run('UPDATE notificaciones SET leido = 1 WHERE usuario_id = ?', [usuarioId], function (err) {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true, changes: this.changes });
@@ -1066,27 +1104,16 @@ app.put('/api/notificaciones/marcar-todas', (req, res) => {
 
 // Middleware para validar que el usuario tenga rol de RH o Dirección
 function verificarAccesoRH(req, res, next) {
-    const userRole = req.headers['x-user-role'] || req.query.user_role || (req.body && req.body.user_role);
-    const token = (req.cookies && (req.cookies.falcont_session || req.cookies.rdl_session)) || (req.headers.authorization && req.headers.authorization.split(' ')[1]);
-    
-    let rol = userRole;
-    if (token) {
-        const decoded = verificarJwt(token);
-        if (decoded && decoded.rol) rol = decoded.rol;
-    }
+    verificarSesion(req, res, () => {
+        const rolesAutorizados = ['RH', 'ADMIN', 'ADMIN_RH', 'CONTADOR_SR', 'ABOGADA_SR'];
+        if (req.user && rolesAutorizados.includes(req.user.rol)) {
+            return next();
+        }
 
-    const rolesAutorizados = ['RH', 'ADMIN', 'ADMIN_RH', 'CONTADOR_SR', 'ABOGADA_SR'];
-    if (rol && rolesAutorizados.includes(rol)) {
-        return next();
-    }
-
-    if (!rol) {
-        return next();
-    }
-
-    return res.status(403).json({
-        success: false,
-        error: 'Acceso Denegado: El Centro de Reportes y Exportación es exclusivo para Recursos Humanos y Dirección.'
+        return res.status(403).json({
+            success: false,
+            error: 'Acceso Denegado: El Centro de Reportes y Exportación es exclusivo para Recursos Humanos y Dirección.'
+        });
     });
 }
 
@@ -1293,14 +1320,31 @@ app.get('*', (req, res) => {
     `);
 });
 
-// Socket.io
+// Socket.io Handshake Auth & Connection
+io.use((socket, next) => {
+    let token = socket.handshake.auth && socket.handshake.auth.token;
+    if (!token && socket.handshake.headers && socket.handshake.headers.cookie) {
+        const rawCookies = socket.handshake.headers.cookie;
+        const match = rawCookies.match(/(?:falcont_session|rdl_session)=([^;]+)/);
+        if (match) token = match[1];
+    }
+    if (token) {
+        const decoded = verificarJwt(token);
+        if (decoded) {
+            socket.user = decoded;
+        }
+    }
+    next();
+});
+
 io.on('connection', (socket) => {
     console.log(`🔌 Nodo Cliente Conectado: ${socket.id}`);
 
     socket.on('join_room', (user) => {
-        if (user && user.id) {
-            socket.join(`user_${user.id}`);
-            console.log(`👤 Usuario FALCONT [${user.nombre} - ${user.rol}] suscrito`);
+        const targetId = socket.user ? socket.user.id : (user && user.id ? parseInt(user.id, 10) : null);
+        if (targetId) {
+            socket.join(`user_${targetId}`);
+            console.log(`👤 Usuario FALCONT [ID ${targetId}] suscrito a canal de notificaciones`);
         }
     });
 
